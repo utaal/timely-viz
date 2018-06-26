@@ -1,0 +1,124 @@
+<body>
+
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
+  <script src="https://dagrejs.github.io/project/dagre-d3/latest/dagre-d3.js"></script>
+  <script type="text/javascript">
+  let width = 960,
+      height = 1080;
+
+  let svg_parent = d3.select("body").append("svg")
+      .attr("width", width) 
+      .attr("height", height);
+
+  let svg = svg_parent.append("g");
+
+  var zoom = d3.zoom()
+      .on("zoom", function() {
+          svg.attr("transform", d3.event.transform);
+      });
+  svg_parent.call(zoom);
+
+  let g = new dagreD3.graphlib.Graph({compound:true});
+  g.setGraph({
+    nodesep: 10,
+    ranksep: 10,
+  });
+
+  let render = new dagreD3.render();
+
+  function update() {
+    for (let o in all_operate) {
+      let operator = all_operate[o];
+      let html = "<div style=\"background-color: white;\">";
+      html += "<span class=name>" + operator.name + "</span>";
+      html += " (<span class=addr>" + operator.addr + "</span>)";
+      html += "</div>";
+      g.setNode("" + operator.addr, {
+        labelType: "html",
+        label: html,
+        rx: 5,
+        ry: 5,
+      });
+      function make_parent(is_g, addr) {
+        if (addr.length > 2) {
+          let parent_addr = addr.slice(0, -1);
+          if (g.nodes().indexOf("" + parent_addr) == -1) {
+            console.log("-> " + parent_addr);
+            g.setNode("g" + parent_addr, { label: "Subgraph: " + parent_addr, style: 'fill: none; stroke: #000; stroke-width: 2px; stroke-dasharray: 2, 2;' });
+            make_parent(true, parent_addr);
+          }
+          g.setParent((is_g ? "g" : "") + addr, "g" + parent_addr);
+          console.log((is_g ? "g" : "") + addr + " parent: " + parent_addr);
+        }
+      }
+      make_parent(false, operator.addr);
+    }
+    let nodes = g.nodes();
+    for (let c in all_channel) {
+      let channel = all_channel[c];
+      if (nodes.indexOf("" + channel.from_addr) >= 0 && nodes.indexOf("" + channel.to_addr) >= 0) {
+        g.setEdge("" + channel.from_addr, "" + channel.to_addr, {
+          label: channel.id,
+          style: channel.subgraph ? "stroke: #33f; stroke-width: 1px; stroke-dasharray: 5, 2; fill:none; " : "",
+        });
+      }
+    }
+    g.nodes().forEach(function(v) {
+      var node = g.node(v);
+      // Round the corners of the nodes
+      node.rx = node.ry = 5;
+    });
+    console.log("RENDER: ");
+    console.log(g._nodes);
+    console.log(g._edges);
+    svg.call(render, g);
+  }
+
+  </script>
+  <script type="text/javascript">
+    let websocket = new WebSocket("ws://localhost:9000/ws/");
+    all_operate = [];
+    all_channel = [];
+    websocket.addEventListener('message', (event) => {
+      let data = JSON.parse(event.data);
+      console.log(data);
+      for (let u in data.updates) {
+        let update = data.updates[u];
+        if (!!update.ChannelMessages) {
+
+        } else if (!!update.Operate) {
+          all_operate.push(update.Operate);
+        } else if (!!update.Channel) {
+          all_channel.push(update.Channel);
+        }
+      }
+      update();
+    });
+
+  </script>
+
+<style>
+text {
+  font-weight: 300;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serf;
+  font-size: 14px;
+}
+
+.node rect {
+  stroke: #333;
+  fill: #fff;
+}
+
+.edgePath path {
+  stroke: #333;
+  fill: #333;
+  stroke-width: 1.5px;
+}
+
+.node text {
+  pointer-events: none;
+}
+</style>
+</body>
+
