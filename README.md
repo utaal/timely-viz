@@ -24,3 +24,14 @@ $ cargo run --bin graph -- 4
 
 Open a browser at http://localhost:9000
 then start the computation we're examining (as before).
+
+## Bar-chart of execution times
+
+The source is in `src/bin/schedule.rs`. Run with:
+
+```
+$ cargo run --bin messages -- 4
+```
+
+Open a browser at http://localhost:9000
+then start the computation we're examining (as before).
