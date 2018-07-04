@@ -14,6 +14,13 @@ where 4 should be the number of workers in the computation we want to examine. O
 TIMELY_WORKER_LOG_ADDR="127.0.0.1:8000" cargo run ... -- -w 4
 ```
 
+(or, in Windows: )
+
+```
+set TIMELY_WORKER_LOG_ADDR=127.0.0.1:8000
+cargo run ... -- -w 4
+```
+
 ## Drawing the graph
 
 The source is in `src/bin/graph.rs`. Run with:
