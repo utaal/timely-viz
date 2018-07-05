@@ -99,7 +99,7 @@ fn main() {
 
             let schedule =
             replayed
-                .flat_map(|(ts, _setup, x)| if let Schedule(event) = x { Some((ts, event)) } else { None })
+                .flat_map(|(ts, setup, x)| if let Schedule(event) = x { Some((ts, setup.index, event)) } else { None })
                 .unary(timely::dataflow::channels::pact::Pipeline, "Schedules", |_,_| {
 
                     let mut map = std::collections::HashMap::new();
@@ -108,19 +108,19 @@ fn main() {
 
                         input.for_each(|time, data| {
                             let mut session = output.session(&time);
-                            for (ts, event) in data.drain(..) {
-                                let id = event.id;
+                            for (ts, worker, event) in data.drain(..) {
+                                let key = (worker, event.id);
                                 match event.start_stop {
                                     timely::logging::StartStop::Start => {
-                                        assert!(!map.contains_key(&id));
-                                        map.insert(id, ts);
+                                        assert!(!map.contains_key(&key));
+                                        map.insert(key, ts);
                                     },
                                     timely::logging::StartStop::Stop { activity: work } => {
-                                        assert!(map.contains_key(&id));
-                                        let end = map.remove(&id).unwrap();
+                                        assert!(map.contains_key(&key));
+                                        let end = map.remove(&key).unwrap();
                                         if work {
                                             let ts = ((ts >> 25) + 1) << 25;
-                                            session.give((id, RootTimestamp::new(ts), (ts - end) as isize));
+                                            session.give((key.1, RootTimestamp::new(ts), (ts - end) as isize));
                                         }
                                     }
                                 }
