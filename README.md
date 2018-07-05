@@ -37,7 +37,7 @@ then start the computation we're examining (as before).
 The source is in `src/bin/schedule.rs`. Run with:
 
 ```
-$ cargo run --bin messages -- 4
+$ cargo run --bin schedule -- 4
 ```
 
 Open a browser at http://localhost:9000
