@@ -6,79 +6,11 @@
 
   <script type="text/javascript">
 
-    var my_spec = {
+    let my_spec = {
       "$schema": "https://vega.github.io/schema/vega/v4.json",
-      "width": 600,
+      "width": 450,
       "height": 600,
-      "padding": 5,
-      "autosize": "none",
-
-      "data": [
-        {
-          "name": "tree",
-          "values": [
-            { "name": "Root", "id": "[]", "parent": null }
-          ],
-          "transform": [
-            {
-              "type": "stratify",
-              "key": "id",
-              "parentKey": "parent"
-            },
-            {
-              "type": "partition",
-              "field": "size",
-              "sort": {"field": "value"},
-              "size": [{"signal": "2 * PI"}, {"signal": "width / 2"}],
-              "as": ["a0", "r0", "a1", "r1", "depth", "children"]
-            }
-          ]
-        }
-      ],
-
-      "scales": [
-        {
-          "name": "color",
-          "type": "ordinal",
-          "range": {"scheme": "tableau20"}
-        }
-      ],
-
-      "marks": [
-        {
-          "type": "arc",
-          "from": {"data": "tree"},
-          "encode": {
-            "enter": {
-              "x": {"signal": "width / 2"},
-              "y": {"signal": "height / 2"},
-              "fill": {"scale": "color", "field": "depth"},
-              "tooltip": {"signal": "datum.name + (datum.size ? ', ' + datum.size + ' ns' : '')"}
-            },
-            "update": {
-              "startAngle": {"field": "a0"},
-              "endAngle": {"field": "a1"},
-              "innerRadius": {"field": "r0"},
-              "outerRadius": {"field": "r1"},
-              "stroke": {"value": "white"},
-              "strokeWidth": {"value": 0.5},
-              "zindex": {"value": 0}
-            },
-            "hover": {
-              "stroke": {"value": "red"},
-              "strokeWidth": {"value": 2},
-              "zindex": {"value": 1}
-            }
-          }
-        }
-      ]
-    };
-
-    my_spec = {
-      "$schema": "https://vega.github.io/schema/vega/v4.json",
-      "width": 400,
-      "height": 200,
-      "padding": 5,
+      "padding": 60,
 
       "data": [
         {
@@ -101,24 +33,28 @@
 
       "scales": [
         {
-          "name": "xscale",
+          "name": "yscale",
           "type": "band",
           "domain": {"data": "table", "field": "category"},
-          "range": "width",
+          "range": "height",
           "padding": 0.05,
           "round": true
         },
         {
-          "name": "yscale",
-          "domain": {"data": "table", "field": "amount"},
+          "name": "xscale",
+          "domain": {"data": "table", "field": "value"},
           "nice": true,
-          "range": "height"
+          "range": "width"
         }
       ],
 
       "axes": [
-        { "orient": "bottom", "scale": "xscale" },
-        { "orient": "left", "scale": "yscale" }
+        { "orient": "left", "scale": "yscale" },
+        {
+          "orient": "bottom",
+          "scale": "xscale",
+          "labelOverlap": "parity"
+        }
       ],
 
       "marks": [
@@ -127,10 +63,10 @@
           "from": {"data":"table"},
           "encode": {
             "enter": {
-              "x": {"scale": "xscale", "field": "category"},
-              "width": {"scale": "xscale", "band": 1},
-              "y": {"scale": "yscale", "field": "amount"},
-              "y2": {"scale": "yscale", "value": 0}
+              "y": {"scale": "yscale", "field": "category"},
+              "height": {"scale": "yscale", "band": 1},
+              "x": {"scale": "xscale", "field": "value"},
+              "x2": {"scale": "xscale", "value": 0}
             },
             "update": {
               "fill": {"value": "steelblue"}
@@ -149,9 +85,9 @@
               "fill": {"value": "#333"}
             },
             "update": {
-              "x": {"scale": "xscale", "signal": "tooltip.category", "band": 0.5},
-              "y": {"scale": "yscale", "signal": "tooltip.amount", "offset": -2},
-              "text": {"signal": "tooltip.amount"},
+              "y": {"scale": "yscale", "signal": "tooltip.category", "band": 0.5},
+              "x": {"scale": "xscale", "signal": "tooltip.value", "offset": -2},
+              "text": {"signal": "tooltip.value"},
               "fillOpacity": [
                 {"test": "datum === tooltip", "value": 0},
                 {"value": 1}
@@ -170,31 +106,46 @@
         .hover()             // enable hover encode set processing
         .run();
 
+    let map1 = new Map();
     let websocket = new WebSocket("ws://localhost:9000/ws/");
     websocket.addEventListener('message', (event) => {
+        let changeset = vega.changeset();
+        let updates = JSON.parse(event.data).updates;
 
-      var inserts = [];
-      var removes = [];
-
-      let updates = JSON.parse(event.data).updates;
-
-      for (let update of updates) {
-        if (update.data == "tree") {
-          if (update.diff == 1) {
-            inserts.push({ "category": update.name, "amount": update.size })
-          }
-          // if (update.diff == -1) {
-          //   removes.push({ "name": update.name, "id": update.id, "parent": update.parent_id, "size": update.size })
-          // }
+        let map_temp = new Map();
+        for (let update of updates) {
+           if (!map_temp.has(update.name)) {
+              map_temp.set(update.name, []);
+           }
+           map_temp.get(update.name).push(update);
         }
-      }
+            
+        for (let [name, list] of map_temp) {
+            if (list.length == 1) {
+                let obj = { "category": list[0].name, "value": list[0].size};
+                if (list[0].diff == 1 ) {
+                    changeset.insert(obj);
+                    map1.set(list[0].name, obj); 
+                }                                         
+                else if (list[0].diff == -1) {
+                    // changeset.remove(map1.get(list[0].name));
+                    changeset.remove((x) => x.category == list[0].name);
+                    map1.delete(list[0].name);
+                }
+            } else {
+                console.assert(list.length == 2,list );
+                for(let i=0; i<list.length; i++) {
+                    if(list[i].diff == 1) {
+                      let o = { "category": list[i].name, "value": list[i].size};
+                      // changeset.modify(map1.get(list[i].name), "value", list[i].size);
+                      changeset.modify((x) => x.category == list[i].name, "value", list[i].size);
+                      map1.set(list[i].name,o);
+                    }
+                }
+            }
+        }
 
-      console.log({ "inserts": inserts, "removes": removes });
-
-      // view.remove('tree', removes).run();
-      view.remove('table', (d) => !!inserts.find((x) => x.category === d.category)).run();
-      view.insert('table', inserts).run();
-
+        view.change('table', changeset).run();
     });
   </script>
 </body>
