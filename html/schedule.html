@@ -5,147 +5,140 @@
   <div id="view"></div>
 
   <script type="text/javascript">
-
     let my_spec = {
       "$schema": "https://vega.github.io/schema/vega/v4.json",
       "width": 450,
       "height": 600,
       "padding": 60,
-
       "data": [
-        {
-          "name": "table",
-          "values": [
-          ]
-        }
+      {
+        "name": "table",
+        "values": [
+        ]
+      }
       ],
-
       "signals": [
-        {
-          "name": "tooltip",
-          "value": {},
-          "on": [
-            {"events": "rect:mouseover", "update": "datum"},
-            {"events": "rect:mouseout",  "update": "{}"}
-          ]
-        }
+      {
+        "name": "tooltip",
+        "value": {},
+        "on": [
+        {"events": "rect:mouseover", "update": "datum"},
+        {"events": "rect:mouseout",  "update": "{}"}
+        ]
+      }
       ],
-
       "scales": [
-        {
-          "name": "yscale",
-          "type": "band",
-          "domain": {"data": "table", "field": "category"},
-          "range": "height",
-          "padding": 0.05,
-          "round": true
-        },
-        {
-          "name": "xscale",
-          "domain": {"data": "table", "field": "value"},
-          "nice": true,
-          "range": "width"
-        }
+      {
+        "name": "yscale",
+        "type": "band",
+        "domain": {"data": "table", "field": "category"},
+        "range": "height",
+        "padding": 0.05,
+        "round": true
+      },
+      {
+        "name": "xscale",
+        "domain": {"data": "table", "field": "value"},
+        "nice": true,
+        "range": "width"
+      }
       ],
-
       "axes": [
-        { "orient": "left", "scale": "yscale" },
-        {
-          "orient": "bottom",
-          "scale": "xscale",
-          "labelOverlap": "parity"
-        }
+      { "orient": "left", "scale": "yscale" },
+      {
+        "orient": "bottom",
+        "scale": "xscale",
+        "labelOverlap": "parity"
+      }
       ],
-
       "marks": [
-        {
-          "type": "rect",
-          "from": {"data":"table"},
-          "encode": {
-            "enter": {
-              "y": {"scale": "yscale", "field": "category"},
-              "height": {"scale": "yscale", "band": 1},
-              "x": {"scale": "xscale", "field": "value"},
-              "x2": {"scale": "xscale", "value": 0}
-            },
-            "update": {
-              "fill": {"value": "steelblue"}
-            },
-            "hover": {
-              "fill": {"value": "red"}
-            }
-          }
-        },
-        {
-          "type": "text",
-          "encode": {
-            "enter": {
-              "align": {"value": "center"},
-              "baseline": {"value": "bottom"},
-              "fill": {"value": "#333"}
-            },
-            "update": {
-              "y": {"scale": "yscale", "signal": "tooltip.category", "band": 0.5},
-              "x": {"scale": "xscale", "signal": "tooltip.value", "offset": -2},
-              "text": {"signal": "tooltip.value"},
-              "fillOpacity": [
-                {"test": "datum === tooltip", "value": 0},
-                {"value": 1}
-              ]
-            }
+      {
+        "type": "rect",
+        "from": {"data":"table"},
+        "encode": {
+          "enter": {
+            "y": {"scale": "yscale", "field": "category"},
+            "height": {"scale": "yscale", "band": 1},
+            "x": {"scale": "xscale", "field": "value"},
+            "x2": {"scale": "xscale", "value": 0}
+          },
+          "update": {
+            "fill": {"value": "steelblue"},
+            "x": {"scale": "xscale", "field": "value"},
+            "height": {"scale": "yscale", "band": 1},
+            "y": {"scale": "yscale", "field": "category"},
+            "x2": {"scale": "xscale", "value": 0}
+          },
+          "hover": {
+            "fill": {"value": "red"}
           }
         }
+      },
+      {
+        "type": "text",
+        "encode": {
+          "enter": {
+            "align": {"value": "center"},
+            "baseline": {"value": "bottom"},
+            "fill": {"value": "#333"}
+          },
+          "update": {
+            "y": {"scale": "yscale", "signal": "tooltip.category", "band": 0.5},
+            "x": {"scale": "xscale", "signal": "tooltip.value", "offset": -2},
+            "text": {"signal": "tooltip.value"},
+            "fillOpacity": [
+            {"test": "datum === tooltip", "value": 0},
+            {"value": 1}
+            ]
+          }
+        }
+      }
       ]
     };
-
     var view = new
     vega.View(vega.parse(my_spec))
-        .logLevel(vega.Warn)
+    .logLevel(vega.Warn)
         .renderer('canvas')  // set renderer (canvas or svg)
         .initialize('#view') // initialize view within parent DOM container
         .hover()             // enable hover encode set processing
         .run();
-
-    let map1 = new Map();
-    let websocket = new WebSocket("ws://localhost:9000/ws/");
-    websocket.addEventListener('message', (event) => {
-        let changeset = vega.changeset();
-        let updates = JSON.parse(event.data).updates;
-
-        let map_temp = new Map();
-        for (let update of updates) {
+        let map1 = new Map();
+        let websocket = new WebSocket("ws://localhost:9000/ws/");
+        websocket.addEventListener('message', (event) => {
+          let changeset = vega.changeset();
+          let updates = JSON.parse(event.data).updates;
+          let map_temp = new Map();
+          for (let update of updates) {
            if (!map_temp.has(update.name)) {
-              map_temp.set(update.name, []);
-           }
-           map_temp.get(update.name).push(update);
+            map_temp.set(update.name, []);
+          }
+          map_temp.get(update.name).push(update);
         }
-            
+        
         for (let [name, list] of map_temp) {
-            if (list.length == 1) {
-                let obj = { "category": list[0].name, "value": list[0].size};
-                if (list[0].diff == 1 ) {
-                    changeset.insert(obj);
-                    map1.set(list[0].name, obj); 
-                }                                         
-                else if (list[0].diff == -1) {
+          if (list.length == 1) {
+            let obj = { "category": list[0].name, "value": list[0].size};
+            if (list[0].diff == 1 ) {
+              changeset.insert(obj);
+              map1.set(list[0].name, obj); 
+            }                                         
+            else if (list[0].diff == -1) {
                     // changeset.remove(map1.get(list[0].name));
                     changeset.remove((x) => x.category == list[0].name);
                     map1.delete(list[0].name);
-                }
-            } else {
-                console.assert(list.length == 2,list );
-                for(let i=0; i<list.length; i++) {
+                  }
+                } else {
+                  console.assert(list.length == 2,list );
+                  for(let i=0; i<list.length; i++) {
                     if(list[i].diff == 1) {
                       let o = { "category": list[i].name, "value": list[i].size};
-                      // changeset.modify(map1.get(list[i].name), "value", list[i].size);
                       changeset.modify((x) => x.category == list[i].name, "value", list[i].size);
                       map1.set(list[i].name,o);
                     }
+                  }
                 }
-            }
-        }
-
-        view.change('table', changeset).run();
-    });
-  </script>
-</body>
+              }
+              view.change('table', changeset).run();
+            });
+          </script>
+        </body>
