@@ -118,10 +118,10 @@ fn main() {
                                     timely::logging::StartStop::Stop { activity: work } => {
                                         assert!(map.contains_key(&key));
                                         let end = map.remove(&key).unwrap();
-                                        if work {
+                                        // if work {
                                             let ts = ((ts >> 25) + 1) << 25;
                                             session.give((key.1, RootTimestamp::new(ts), (ts - end) as isize));
-                                        }
+                                        // }
                                     }
                                 }
                             }

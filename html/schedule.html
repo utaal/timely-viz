@@ -10,20 +10,31 @@
       "width": 450,
       "height": 600,
       "padding": 60,
+      "signals": [
+        {
+          "name": "tooltip",
+          "value": {},
+          "on": [
+          {"events": "rect:mouseover", "update": "datum"},
+          {"events": "rect:mouseout",  "update": "{}"}
+          ]
+        },
+        {
+          "name": "filterlist",
+          "value": "[0, 2,",
+          "bind": { "input": "text" }
+        }
+      ],
       "data": [
       {
         "name": "table",
         "values": [
-        ]
-      }
-      ],
-      "signals": [
-      {
-        "name": "tooltip",
-        "value": {},
-        "on": [
-        {"events": "rect:mouseover", "update": "datum"},
-        {"events": "rect:mouseout",  "update": "{}"}
+        ],
+        "transform": [
+          {
+            "type": "filter",
+            "expr": "datum.prefix == filterlist"
+          }
         ]
       }
       ],
@@ -98,47 +109,56 @@
     var view = new
     vega.View(vega.parse(my_spec))
     .logLevel(vega.Warn)
-        .renderer('canvas')  // set renderer (canvas or svg)
-        .initialize('#view') // initialize view within parent DOM container
-        .hover()             // enable hover encode set processing
-        .run();
-        let map1 = new Map();
-        let websocket = new WebSocket("ws://localhost:9000/ws/");
-        websocket.addEventListener('message', (event) => {
-          let changeset = vega.changeset();
-          let updates = JSON.parse(event.data).updates;
-          let map_temp = new Map();
-          for (let update of updates) {
-           if (!map_temp.has(update.name)) {
-            map_temp.set(update.name, []);
-          }
-          map_temp.get(update.name).push(update);
+    .renderer('canvas')  // set renderer (canvas or svg)
+    .initialize('#view') // initialize view within parent DOM container
+    .hover()             // enable hover encode set processing
+    .run();
+
+    let map1 = new Map();
+    let websocket = new WebSocket("ws://localhost:9000/ws/");
+    websocket.addEventListener('message', (event) => {
+
+      let changeset = vega.changeset();
+      let updates = JSON.parse(event.data).updates;
+      let map_temp = new Map();
+      for (let update of updates) {
+         if (!map_temp.has(update.name)) {
+          map_temp.set(update.name, []);
         }
-        
-        for (let [name, list] of map_temp) {
-          if (list.length == 1) {
-            let obj = { "category": list[0].name, "value": list[0].size};
-            if (list[0].diff == 1 ) {
-              changeset.insert(obj);
-              map1.set(list[0].name, obj); 
-            }                                         
-            else if (list[0].diff == -1) {
-                    // changeset.remove(map1.get(list[0].name));
-                    changeset.remove((x) => x.category == list[0].name);
-                    map1.delete(list[0].name);
-                  }
-                } else {
-                  console.assert(list.length == 2,list );
-                  for(let i=0; i<list.length; i++) {
-                    if(list[i].diff == 1) {
-                      let o = { "category": list[i].name, "value": list[i].size};
-                      changeset.modify((x) => x.category == list[i].name, "value", list[i].size);
-                      map1.set(list[i].name,o);
-                    }
-                  }
-                }
-              }
-              view.change('table', changeset).run();
-            });
-          </script>
-        </body>
+        map_temp.get(update.name).push(update);
+      }
+
+      for (let [name, list] of map_temp) {
+        if (list.length == 1) {
+
+          let obj = {
+            "category": list[0].name,
+            "value": list[0].size,
+            "prefix": list[0].name.substring(0, list[0].name.lastIndexOf(','))
+          };
+
+          if (list[0].diff == 1 ) {
+            changeset.insert(obj);
+            map1.set(list[0].name, obj);
+          }
+          else if (list[0].diff == -1) {
+            // NOTE: Intent is:
+            // changeset.remove(map1.get(list[0].name));
+            changeset.remove((x) => x.category == list[0].name);
+            map1.delete(list[0].name);
+          }
+        } else {
+          console.assert(list.length == 2,list );
+          for(let i=0; i<list.length; i++) {
+            if(list[i].diff == 1) {
+              let o = { "category": list[i].name, "value": list[i].size};
+              changeset.modify((x) => x.category == list[i].name, "value", list[i].size);
+              map1.set(list[i].name,o);
+            }
+          }
+        }
+      }
+      view.change('table', changeset).run();
+    });
+  </script>
+</body>
