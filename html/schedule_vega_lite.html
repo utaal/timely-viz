@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+  <script src="https://cdn.jsdelivr.net/npm/vega@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@3"></script>
+
+</head>
+<body>
+
+  <div id="vis"></div>
+
+  <script type="text/javascript">
+    var spec = {
+      "$schema": "https://vega.github.io/schema/vega-lite/v2.0.json",
+      "description": "",
+      "height": 900,
+      "width": 700,
+      "data": {
+        "name":"table",
+        "values": [
+        ],
+      },
+      "transform": [{"filter": {"selection": "filterlist"}}], 
+      "selection": {
+        "filterlist": {
+          "type": "single",
+          "fields": ["prefix"],
+          "bind": { "input": "text" },
+          "on": "keyup"
+        }
+      },      
+      "mark": "bar",
+      "encoding": {
+        "x": {"field": "value", "type": "quantitative"},
+        "y": {"field": "category", "type": "ordinal"},
+        "tooltip": {"field": "value", "type": "quantitative"
+      }   
+    }
+  }
+
+
+  vegaEmbed('#vis',spec).then(function(result) {
+    const view = result.view;
+
+    let map1 = new Map();
+    let websocket = new WebSocket("ws://localhost:9000/ws/");
+    websocket.addEventListener('message', (event) => {
+      let changeset = vega.changeset();
+      let updates = JSON.parse(event.data).updates;
+      let map_temp = new Map();
+      for (let update of updates) {
+       if (!map_temp.has(update.name)) {
+        map_temp.set(update.name, []);
+        console.log(update.name);
+      }
+      map_temp.get(update.name).push(update);
+    }
+
+    for (let [name, list] of map_temp) {
+      if (list.length == 1) {
+        let obj = { "category": list[0].name, 
+        "value": list[0].size,
+        "prefix": list[0].name.substring(0, list[0].name.lastIndexOf(','))};
+
+        if (list[0].diff == 1 ) {
+          changeset.insert(obj);
+          map1.set(list[0].name, obj); 
+        }                                         
+        else if (list[0].diff == -1) {
+          changeset.remove((x) => x.category == list[0].name);
+          map1.delete(list[0].name);
+        }
+      } else {
+        console.assert(list.length == 2,list );
+        for(let i=0; i<list.length; i++) {
+          if(list[i].diff == 1) {
+            let o = { "category": list[i].name, "value": list[i].size};
+            changeset.modify((x) => x.category == list[i].name, "value", list[i].size);
+            map1.set(list[i].name,o);
+          }
+        }
+      }
+    }
+    view.change('table', changeset).run();
+  });
+  });
+
+
+</script>
+</body>
+</html>

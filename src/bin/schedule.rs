@@ -47,7 +47,7 @@ impl actix::Message for Updates {
     type Result = ();
 }
 
-impl Handler<Updates> for Ws {
+impl Handler<Updates> for Ws{
     type Result = ();
 
     fn handle(&mut self, msg: Updates, ctx: &mut Self::Context) {
@@ -99,7 +99,8 @@ fn main() {
 
             let schedule =
             replayed
-                .flat_map(|(ts, setup, x)| if let Schedule(event) = x { Some((ts, setup.index, event)) } else { None })
+                .flat_map(|(ts, setup, x)| if let Schedule(event) = x { Some((ts, setup.index, event)) } 
+                    else { None })
                 .unary(timely::dataflow::channels::pact::Pipeline, "Schedules", |_,_| {
 
                     let mut map = std::collections::HashMap::new();
@@ -118,10 +119,10 @@ fn main() {
                                     timely::logging::StartStop::Stop { activity: work } => {
                                         assert!(map.contains_key(&key));
                                         let end = map.remove(&key).unwrap();
-                                        // if work {
+                                        if work {
                                             let ts = ((ts >> 25) + 1) << 25;
                                             session.give((key.1, RootTimestamp::new(ts), (ts - end) as isize));
-                                        // }
+                                        }
                                     }
                                 }
                             }
@@ -132,6 +133,7 @@ fn main() {
 
             operates
                 .map(|x| (x.id, x.addr))
+                .filter(|x| x.1[0] == 0)
                 .semijoin(&schedule)
                 .map(|(_id, addr)| addr)
                 .count()
@@ -164,7 +166,6 @@ fn main() {
                         }
                     }
                     updates.updates.retain(|x| x.diff != 0);
-
                     if !updates.updates.is_empty() {
                         for chan in endpoint.lock().unwrap().iter_mut() {
                             chan.send(updates.clone()).wait().unwrap();
@@ -174,11 +175,10 @@ fn main() {
         });
 
     }).unwrap(); // asserts error-free execution
-
     }));
 
     fn index(_req: HttpRequest) -> Result<NamedFile> {
-        Ok(NamedFile::open("html/schedule.html")?)
+        Ok(NamedFile::open("html/schedule_vega_lite.html")?)
     }
 
     server::new(move || {
