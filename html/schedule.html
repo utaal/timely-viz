@@ -2,6 +2,8 @@
   <script src="https://vega.github.io/vega/vega.js"></script>
 </head>
 <body>
+
+  <button id="back">back</button>
   <div id="view"></div>
 
   <script type="text/javascript">
@@ -10,21 +12,7 @@
       "width": 450,
       "height": 600,
       "padding": 60,
-      "signals": [
-        {
-          "name": "tooltip",
-          "value": {},
-          "on": [
-          {"events": "rect:mouseover", "update": "datum"},
-          {"events": "rect:mouseout",  "update": "{}"}
-          ]
-        },
-        {
-          "name": "filterlist",
-          "value": "[0, 2,",
-          "bind": { "input": "text" }
-        }
-      ],
+    
       "data": [
       {
         "name": "table",
@@ -37,6 +25,13 @@
           }
         ]
       }
+      ],
+      "signals": [
+        {
+          "name": "filterlist",
+          "value": "[0, 0]",
+          "on": [{"events": "dblclick", "update": "invert('yscale', y())"}]
+        }
       ],
       "scales": [
       {
@@ -81,31 +76,15 @@
             "x2": {"scale": "xscale", "value": 0}
           },
           "hover": {
-            "fill": {"value": "red"}
-          }
-        }
-      },
-      {
-        "type": "text",
-        "encode": {
-          "enter": {
-            "align": {"value": "center"},
-            "baseline": {"value": "bottom"},
-            "fill": {"value": "#333"}
-          },
-          "update": {
-            "y": {"scale": "yscale", "signal": "tooltip.category", "band": 0.5},
-            "x": {"scale": "xscale", "signal": "tooltip.value", "offset": -2},
-            "text": {"signal": "tooltip.value"},
-            "fillOpacity": [
-            {"test": "datum === tooltip", "value": 0},
-            {"value": 1}
-            ]
+            "fill": {"value": "blue"}
           }
         }
       }
       ]
     };
+
+    const back_button = document.getElementById('back');
+   
     var view = new
     vega.View(vega.parse(my_spec))
     .logLevel(vega.Warn)
@@ -113,13 +92,23 @@
     .initialize('#view') // initialize view within parent DOM container
     .hover()             // enable hover encode set processing
     .run();
-
+    
     let map1 = new Map();
     let websocket = new WebSocket("ws://localhost:9000/ws/");
     websocket.addEventListener('message', (event) => {
 
       let changeset = vega.changeset();
       let updates = JSON.parse(event.data).updates;
+      
+      // view.addSignalListener('filterlist', (name, value) => {
+      //   console.log(value);
+      // });
+
+      back_button.onclick = () => {
+        let cur = view.signal('filterlist');
+        view.signal('filterlist', cur.substring(0, cur.lastIndexOf(',')) + "]");
+      };
+
       let map_temp = new Map();
       for (let update of updates) {
          if (!map_temp.has(update.name)) {
@@ -134,7 +123,7 @@
           let obj = {
             "category": list[0].name,
             "value": list[0].size,
-            "prefix": list[0].name.substring(0, list[0].name.lastIndexOf(','))
+            "prefix": list[0].name.substring(0, list[0].name.lastIndexOf(',')) + "]"
           };
 
           if (list[0].diff == 1 ) {
@@ -159,6 +148,8 @@
         }
       }
       view.change('table', changeset).run();
+
+        
     });
   </script>
 </body>

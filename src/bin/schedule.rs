@@ -178,7 +178,7 @@ fn main() {
     }));
 
     fn index(_req: HttpRequest) -> Result<NamedFile> {
-        Ok(NamedFile::open("html/schedule_vega_lite.html")?)
+        Ok(NamedFile::open("html/schedule.html")?)
     }
 
     server::new(move || {
