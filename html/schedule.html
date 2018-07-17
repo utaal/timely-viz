@@ -2,14 +2,37 @@
   <script src="https://vega.github.io/vega/vega.js"></script>
 </head>
 <body>
-
+ 
   <button id="back">back</button>
   <div id="view"></div>
+  
+  <style>
+  #back{
+  padding: 10px 25px;
+  font-size: 24px;
+  text-align: center;
+  outline: none;
+  color: #fff;
+  background-color: #42c2f4;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px #999;
+  position:relative;
+  }
+
+ #back:hover {background-color: #4192f4}
+
+ #back:active {
+  background-color: #3e8e41;
+ 
+ }
+ </style>
+
 
   <script type="text/javascript">
     let my_spec = {
       "$schema": "https://vega.github.io/schema/vega/v4.json",
-      "width": 450,
+      "width": 700,
       "height": 600,
       "padding": 60,
     
@@ -30,7 +53,7 @@
         {
           "name": "filterlist",
           "value": "[0, 0]",
-          "on": [{"events": "dblclick", "update": "invert('yscale', y())"}]
+          "on": [{"events": "click", "update": "invert('yscale', y())"}]
         }
       ],
       "scales": [
@@ -50,11 +73,20 @@
       }
       ],
       "axes": [
-      { "orient": "left", "scale": "yscale" },
+      { "orient": "left", 
+        "scale": "yscale",
+        "titlePadding": 15,
+        "title": "Category",
+        "titleFontSize": 16,
+        "labelFontSize": 14
+      },
       {
         "orient": "bottom",
         "scale": "xscale",
-        "labelOverlap": "parity"
+        "labelOverlap": "parity",
+        "title": "Time in ns",
+        "titleFontSize": 16,
+        "labelFontSize": 14
       }
       ],
       "marks": [
@@ -76,7 +108,7 @@
             "x2": {"scale": "xscale", "value": 0}
           },
           "hover": {
-            "fill": {"value": "blue"}
+            "fill": {"value": "#4192f4"}
           }
         }
       },
@@ -84,10 +116,13 @@
         "type": "text",
         "encode": {
           "enter": {
-            "fill": {"value": "#000"}
+            "fill": {"value": "black"},
+            "fontSize": {"value": 20},
+            "align": {"value": "right"}
           },
           "update": {
             "text": {"signal": "'current filter: ' + filterlist"}
+
           }
         }
       }
