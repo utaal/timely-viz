@@ -1,0 +1,258 @@
+<head>
+  <script src="https://vega.github.io/vega/vega.js"></script>
+</head>
+<body>
+   <div id="view"></div>
+   <script type="text/javascript">
+
+  let my_spec = {"$schema": "https://vega.github.io/schema/vega/v4.json",
+  "width": 800,
+  "height": 600,
+  "padding": {"top": 25, "left": 0, "right": 0, "bottom": 0},
+
+  "signals": [
+    {
+      "name": "labels", "value": true,
+      "bind": {"input": "checkbox"}
+    },
+    {
+      "name": "hover",
+      "value": null,
+      "on": [
+        {"events": "symbol:mouseover", "update": "datum"},
+        {"events": "symbol:mouseout", "update": "null"}
+      ]
+    },
+    {
+      "name": "operator_name",
+      "value": "Operate",
+      "update": "hover ? hover.name + ' [' + hover.id + ']'  : 'Operate'"
+    },
+    {
+      "name": "cell_stroke",
+      "value": null,
+      "on": [
+        {"events": "dblclick", "update": "cell_stroke ? null : 'brown'"},
+        {"events": "mousedown!", "update": "cell_stroke"}
+      ]
+    }
+  ],
+
+  "data": [
+    {
+      "name": "tree",
+      "values": [],
+      "transform": [
+        {
+          "type": "stratify",
+          "key": "id",
+          "parentKey": "parent"
+        },
+        {
+          "type": "tree",
+          "method": "tidy",
+          "size": [{"signal": "height + 10"}, {"signal": "width - 200"}],
+          "as": ["y", "x", "depth", "children"]
+        }
+      ]
+    },
+    {
+      "name": "links",
+      "source": "tree",
+      "transform": [
+        {
+          "type": "filter",
+          "expr": "hover && hover.id == datum.parent"
+       },
+       {
+          "type": "lookup",
+          "from": "tree", "key": "id",
+          "fields": ["parent", "id"], "as": ["source", "target"]
+        },
+        {
+          "type": "filter",
+          "expr": "datum.source && datum.target"
+        },
+        {
+          "type": "linkpath",
+          "shape": "line"
+        }
+      ]
+    }
+  ],
+
+  "scales": [
+    {
+      "name": "color",
+      "type": "ordinal",
+      "range": {"scheme": "magma"},
+      "domain": {"data": "tree", "field": "depth"},
+      "zero": true
+    }
+  ],
+
+  "marks": [
+  {
+      "type": "path",
+      "name": "cell",
+      "from": {"data": "tree"},
+      "encode": {
+        "enter": {
+          "fill": {"value": "transparent"},
+          "strokeWidth": {"value": 0.45}
+        },
+        "update": {
+          "path": {"field": "path"},
+          "stroke": {"signal": "cell_stroke"}
+        }
+      }
+  },
+  {
+  "type": "path",
+  "interactive": false,
+  "from": {"data": "links"},
+  "encode": {
+    "enter": {
+      "path": {"field": "path"},
+      "stroke": {"value": "black"},
+      "strokeOpacity": {"value": 0.35}
+    }
+  }
+  },
+  {
+      "type": "symbol",
+      "from": {"data": "tree"},
+      "encode": {
+        "enter": {
+          "size": {"value": 450},
+          "stroke": {"value": "#fff"}
+        },
+        "update": {
+          "x": {"field": "x"},
+          "y": {"field": "y"},
+          "fill": {"scale": "color", "field": "depth"}
+        }
+      }
+  },
+  {
+  "type": "text",
+  "interactive": false,
+    "encode": {
+     "enter": {
+      "x": {"value":200},
+      "y": {"value": 20},
+      "fill": {"value": "black"},
+      "fontSize": {"value": 20},
+      "align": {"value": "center"}
+      },
+      "update": {
+      "text": {"signal": "operator_name"}
+      }
+     }
+  },
+  {
+      "type": "text",
+      "from": {"data": "tree"},
+      "encode": {
+        "enter": {
+          "text": {"field": "name"},
+          "fontSize": {"value": 14},
+          "baseline": {"value": "middle"}
+        },
+        "update": {
+          "x": {"field": "x"},
+          "y": {"field": "y"},
+          "dx": {"signal": "datum.children ? -17 : 17"},
+          "align": {"signal": "datum.children ? 'right' : 'left'"},
+          "opacity": {"signal": "labels ? 1 : 0"}
+        }
+      }
+  }
+  ]
+};
+
+
+  var view = new
+    vega.View(vega.parse(my_spec))
+    .logLevel(vega.Warn)
+    .renderer('canvas')  // set renderer (canvas or svg)
+    .initialize('#view') // initialize view within parent DOM container
+    .hover()             // enable hover encode set processing
+    .run();
+    
+    let websocket = new WebSocket("ws://localhost:9000/ws/");
+    all_operate = [];
+    all_channel = [];
+    let changeset = vega.changeset();
+
+    websocket.addEventListener('message', (event) => {
+      let data = JSON.parse(event.data);
+      console.log(data);
+      for (let u in data.updates) {
+        let update = data.updates[u];
+        if (!!update.ChannelMessages) {
+
+        } else if (!!update.Operate) {
+          all_operate.push(update.Operate);
+        } else if (!!update.Channel) {
+          all_channel.push(update.Channel);
+        }
+      }
+    let inserts = [];
+    let parent_addr = [];
+    let obj = {};
+    
+  for(let i in all_operate){
+
+    if(inserts.length === 0){
+        let o = {"id": "0,0", "parent": null, "name": "Root" };
+        console.log(o); 
+        inserts.push(o);
+        o = {"id": "0,4", "parent": "0,0", "name": "Subgraph" };
+        console.log(o); 
+        inserts.push(o); 
+    }
+
+    let contains = function (arr, obj) {
+      for(let i in arr){
+        if(JSON.stringify(arr[i]) === JSON.stringify(obj)){
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if(all_operate[i].addr.length > 2){
+        parent_addr = all_operate[i].addr.slice(0, -1);
+        obj = {"id": all_operate[i].addr.toString(), "parent":parent_addr.toString(), "name": all_operate[i].name};
+    }
+    else if(all_operate[i].addr.length === 2){
+        parent_addr = [0,0];
+        obj = {"id": all_operate[i].addr.toString(), "parent":parent_addr.toString(), "name": all_operate[i].name};
+    }
+        
+    if(!contains(inserts,obj)){
+      inserts.push(obj);
+    }
+    
+  }
+  let name = null;
+  for(let i in all_channel){
+
+    for(let j in inserts){
+      if(all_channel[i].subgraph && all_channel[i].to_addr[all_channel[i].to_addr.length - 1] !== 0){
+        if(all_channel[i].to_addr.toString() === inserts[j].id){
+          name = inserts[j].name;
+        }
+        if(all_channel[i].from_addr.toString() === inserts[j].id){
+        let o = {"id": all_channel[i].to_addr.toString(), "parent": all_channel[i].from_addr.toString(), "name": name };
+        inserts.push(o);
+        }
+      }
+    }
+  }
+  view.insert('tree', inserts).run();
+
+    });
+ </script>
+</body>
