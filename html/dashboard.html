@@ -1,0 +1,231 @@
+<head>
+  <script src="https://vega.github.io/vega/vega.js"></script>
+</head>
+<body>
+  <div id="view"></div>
+
+  <script type="text/javascript">
+    let my_spec = {
+      "$schema": "https://vega.github.io/schema/vega/v4.json",
+      "width": 450,
+      "height": 600,
+      "padding": 60,
+      "signals": [
+        {
+          "name": "tooltip",
+          "value": {},
+          "on": [
+          {"events": "rect:mouseover", "update": "datum"},
+          {"events": "rect:mouseout",  "update": "{}"}
+          ]
+        },
+        {
+          "name": "filterlist",
+          "value": "[0, 2,",
+          "bind": { "input": "text" }
+        }
+      ],
+      "data": [
+      {
+        "name": "table",
+        "values": [
+        ],
+        "transform": [
+          {
+            "type": "filter",
+            "expr": "datum.prefix == filterlist"
+          }
+        ]
+      }
+      ],
+      "scales": [
+      {
+        "name": "yscale",
+        "type": "band",
+        "domain": {"data": "table", "field": "category"},
+        "range": "height",
+        "padding": 0.05,
+        "round": true
+      },
+      {
+        "name": "xscale",
+        "domain": {"data": "table", "field": "value"},
+        "nice": true,
+        "range": "width"
+      }
+      ],
+      "axes": [
+      { "orient": "left", "scale": "yscale" },
+      {
+        "orient": "bottom",
+        "scale": "xscale",
+        "labelOverlap": "parity"
+      }
+      ],
+      "marks": [
+      {
+        "type": "rect",
+        "from": {"data":"table"},
+        "encode": {
+          "enter": {
+            "y": {"scale": "yscale", "field": "category"},
+            "height": {"scale": "yscale", "band": 1},
+            "x": {"scale": "xscale", "field": "value"},
+            "x2": {"scale": "xscale", "value": 0}
+          },
+          "update": {
+            "fill": {"value": "steelblue"},
+            "x": {"scale": "xscale", "field": "value"},
+            "height": {"scale": "yscale", "band": 1},
+            "y": {"scale": "yscale", "field": "category"},
+            "x2": {"scale": "xscale", "value": 0}
+          },
+          "hover": {
+            "fill": {"value": "red"}
+          }
+        }
+      },
+      {
+        "type": "text",
+        "encode": {
+          "enter": {
+            "align": {"value": "center"},
+            "baseline": {"value": "bottom"},
+            "fill": {"value": "#333"}
+          },
+          "update": {
+            "y": {"scale": "yscale", "signal": "tooltip.category", "band": 0.5},
+            "x": {"scale": "xscale", "signal": "tooltip.value", "offset": -2},
+            "text": {"signal": "tooltip.value"},
+            "fillOpacity": [
+            {"test": "datum === tooltip", "value": 0},
+            {"value": 1}
+            ]
+          }
+        }
+      }
+      ]
+    };
+
+    my_spec = {
+      "$schema": "https://vega.github.io/schema/vega/v4.json",
+      "width": 600,
+      "height": 600,
+      "padding": 5,
+      "autosize": "none",
+
+      "signals": [
+        {
+          "name": "tooltip",
+          "value": {},
+          "on": [
+          {"events": "rect:mouseover", "update": "datum"},
+          {"events": "rect:mouseout",  "update": "{}"}
+          ]
+        },
+      ],
+
+      "data": [
+        {
+          "name": "tree",
+          "values": [
+          ],
+          "transform": [
+            {
+              "type": "stratify",
+              "key": "addr",
+              "parentKey": "parent"
+            },
+            {
+              "type": "partition",
+              "field": "size",
+              "sort": {"field": "data.addr"},
+              "size": [{"signal": "2 * PI"}, {"signal": "width / 2"}],
+              "as": ["a0", "r0", "a1", "r1", "depth", "children"]
+            }
+          ]
+        }
+      ],
+
+      "scales": [
+        {
+          "name": "color",
+          "type": "ordinal",
+          "range": {"scheme": "tableau20"}
+        }
+      ],
+
+      "marks": [
+        {
+          "type": "arc",
+          "from": {"data": "tree"},
+          "encode": {
+            "enter": {
+              "x": {"signal": "width / 2"},
+              "y": {"signal": "height / 2"},
+              "fill": {"scale": "color", "field": "depth"},
+              "tooltip": {"signal": "'name: ' + datum.name + ',\\n' + 'addr: ' + datum.addr + ',\\n' + 'time: ' + datum.size + ' ns'"}
+            },
+            "update": {
+              "x": {"signal": "width / 2"},
+              "y": {"signal": "height / 2"},
+              "startAngle": {"field": "a0"},
+              "endAngle": {"field": "a1"},
+              "innerRadius": {"field": "r0"},
+              "outerRadius": {"field": "r1"},
+              "stroke": {"value": "white"},
+              "strokeWidth": {"value": 0.5},
+              "zindex": {"value": 0},
+              "tooltip": {"signal": "'name: ' + datum.name + ',\\n' + 'addr: ' + datum.addr + ',\\n' + 'time: ' + datum.size + ' ns'"}
+            },
+          }
+        },
+          {
+        "type": "text",
+        "encode": {
+          "enter": {
+            "align": {"value": "center"},
+            "baseline": {"value": "bottom"},
+            "fill": {"value": "#333"}
+          },
+          "update": {
+            "y": {"signal": "width / 2"},
+            "x": {"signal": "height / 2"},
+            "text": {"signal": "tooltip.value"},
+            "fillOpacity": [
+            {"test": "datum === tooltip", "value": 0},
+            {"value": 1}
+            ]
+          }
+        }
+      }
+      ]
+    };
+
+    var view = new
+    vega.View(vega.parse(my_spec))
+    .logLevel(vega.Warn)
+    .renderer('canvas')  // set renderer (canvas or svg)
+    .initialize('#view') // initialize view within parent DOM container
+    .hover()             // enable hover encode set processing
+    .run();
+
+    view.insert('tree', {
+      "name": "Dataflow",
+      "addr": "[0, 0]",
+      "parent": null,
+      "size": 0,
+    }).run();
+
+    let map1 = new Map();
+    let websocket = new WebSocket("ws://localhost:9000/ws/");
+    websocket.addEventListener('message', (event) => {
+
+      let updates = JSON.parse(event.data).updates;
+      for (let update of updates) {
+        console.log(update);
+      }
+
+    });
+  </script>
+</body>
