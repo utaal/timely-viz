@@ -3,124 +3,147 @@
 </head>
 <body>
 
-  <div id="container">
+<div id="container">
     
-    <button id="back">back</button>
+<button id="back">back</button>
 
-    <div id="view"></div>
-    <div id="view-rhs"></div>
-  </div>
+<div id="view"></div>
+<div id="view-rhs"></div>
+</div>
 
-  <style>
-    #back{
-  padding: 10px 25px;
-  font-size: 24px;
-  text-align: center;
-  outline: none;
-  color: #fff;
-  background-color: #42c2f4;
-  border: none;
-  border-radius: 10px;
-  box-shadow: 0 4px #999;
-  position:relative;
+<style>
+  #back{
+    padding: 10px 25px;
+    font-size: 24px;
+    text-align: center;
+    outline: none;
+    color: #fff;
+    background-color: #42c2f4;
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px #999;
+    position:relative;
   }
-
-    #back:hover {
-      background-color: #4192f4
-    }
-
-    #back:active {
-      background-color: #3e8e41;
- 
-    }
-    #view{
-      float:left;
-      padding-left:10px;
-    }
-    #view-rhs{
-      float:right;
-      padding-right: 10px;
+  #back:hover {
+    background-color: #4192f4
   }
- 
+  #back:active {
+    background-color: #3e8e41;
+  }
+  #view{
+    float:left;
+    padding-left:10px;
+  }
+  #view-rhs{
+    float:right;
+    padding-right: 10px;
+  } 
+</style>
 
-  </style>
 <script type="text/javascript">
-let my_spec = {
-  "$schema": "https://vega.github.io/schema/vega/v4.json",
-  "width": 600,
-  "height": 1000,
-  "padding": 80,
-  "autosize": "fit",
-
-  "data": [
-    {
-      "name": "tree",
-      "values":[]
-    },
-    {
-      "name": "sunburst",
-       "source": "tree",
-      "transform": [
-
-        {
-          "type": "stratify",
-          "key": "addr",
-          "parentKey": "parent"
-        },
-        {
-          "type": "partition",
-          "field": "elapsed_ns",
-          "sort": {"field": "value"},
-          "size": [{"signal": " 2 * PI"}, {"signal": "width / 2.5"}],
-          "as": ["a0", "r0", "a1", "r1", "depth", "chidlren"]
-        }
-      ]
-    },
-    
-    {
-     "name": "table",
-     "source": "tree",
-     "transform": [
-        {
-          "type": "filter",
-          "expr": "datum.parent == filterlist"
-        }
-     ]
-    }
-  ],
-   "signals": [
-        {
-          "name": "filterlist",
-          "value": "[0,0]",
-           "on": [{"events": "click", "update": "invert('yscale', y())"}]
-   
-        }
-      ],
-
-  "scales": [
-    {
-      "name": "color",
-      "type": "ordinal",
-      "range": {"scheme": "tableau20"}
-    },   
-    {
+  let my_spec = {
+    "$schema": "https://vega.github.io/schema/vega/v4.json",
+    "width": 600,
+    "height": 1000,
+    "padding": 80,
+    "autosize": "fit",
+    "data": [
+      {
+        "name": "tree",
+        "values":[]
+      },
+      {
+        "name": "sunburst",
+        "source": "tree",
+        "transform": [
+          {
+            "type": "stratify",
+            "key": "addr",
+            "parentKey": "parent"
+          },
+          {
+            "type": "partition",
+            "field": "elapsed_ns",
+            "sort": {"field": "value"},
+            "size": [1,1],
+            "as": ["start", "inner", "end", "outer", "depth", "children"]
+          }
+        ]
+      },
+      {
+        "name": "table",
+        "source": "tree",
+        "transform": [
+          {
+            "type": "filter",
+            "expr": "datum.parent == filterlist"
+          }
+        ]
+      }
+    ],
+    "signals": [
+      {
+        "name": "filterlist",
+        "value": "[0,0]",
+        "on": [{"events": "rect:click", "update": "invert('yscale', y())"}]
+      },
+      {
+        "name": "miny",
+        "value": 0,
+        "on": [{"events": "arc:click", "update": "datum.inner"}
+        ]
+      },
+      {
+        "name": "minx",
+        "value": 0,
+        "on": [{"events": "arc:click", "update": "datum.start"}
+        ]
+      },
+      {
+        "name": "maxx",
+        "on": [{"events": "arc:click", "update": "datum.start + datum.end"}
+        ]
+      }
+    ],
+    "scales": [
+      {
+        "name": "color",
+        "type": "ordinal",
+        "range": {"scheme": "accent"}
+      },
+      {
+        "name": "x",
+        "type": "linear",
+        "domain": [0,1],
+        "domainMin": {"signal": "minx"},
+        "domainMax": {"signal": "maxx"},
+        "range": [0, {"signal": "2 * PI"}]
+      },
+      {
+        "name": "y",
+        "type": "sqrt",
+        "domain": [0, 1],
+        "domainMin": {"signal": "miny"},
+        "range": [{"signal": "miny != 0 ? 20 : 0"}, {"signal": "(min(width, height )/2.5) - 10"}]
+      },   
+      {
         "name": "yscale",
         "type": "band",
-        "domain": {"data": "tree", "field": "addr"},
+        "domain": {"data": "table", "field": "addr"},
         "range": [950,400],
-        "padding": 0.05,
-        "round": true,
-        "clamp": true
+        "padding": 0.03,
+        "round": true
       },
       {
         "name": "xscale",
-        "domain": {"data": "tree", "field": "elapsed_ns"},
+        "domain": {"data": "table", "field": "elapsed_ns"},
         "nice": true,
         "range": "width"
       }
-  ],
-   "axes": [
-      { "orient": "left", 
+    ],
+    "axes": [
+      { 
+        "orient": "left", 
         "scale": "yscale",
         "titlePadding": 15,
         "title": "addr",
@@ -135,38 +158,39 @@ let my_spec = {
         "titleFontSize": 16,
         "labelFontSize": 14
       }
-      ],
-  "marks": [
-    {
-      "type": "arc",
-      "from": {"data": "sunburst"},
-      "encode": {
-        "enter": {
-          "x": {"signal": "width / 4"},
-          "y": {"signal": "height / 6"},
-          "fill": {"scale": "color", "field": "depth"},
-          "tooltip": {"signal": "datum.addr + (datum.elapsed_ns? ', ' + datum.elapsed_ns + ' ns' : '')"}
-        },
-        "update": {
-          "x": {"signal": "width / 4"},
-          "y": {"signal": "height / 6"},
-          "startAngle": {"field": "a0"},
-          "endAngle": {"field": "a1"},
-          "innerRadius": {"field": "r0"},
-          "outerRadius": {"field": "r1"},
-          "stroke": {"value": "white"},
-          "strokeWidth": {"value": 0.5},
-          "zindex": {"value": 0},
-          "tooltip": {"signal": "'name: ' + datum.name  + '' + ' addr: ' + datum.addr + ' time: ' + datum.elapsed_ns + ' ns'"}
-        },
-        "hover": {
-          "stroke": {"value": "red"},
-          "strokeWidth": {"value": 2},
-          "zindex": {"value": 1}
+    ],
+    "marks": [
+      {
+        "type": "arc",
+        "from": {"data": "sunburst"},
+        "encode": {
+          "enter": {
+            "x": {"signal": "width / 4"},
+            "y": {"signal": "height / 6"},
+            "fill": {"scale": "color", "field": "depth"}
+          },
+          "update": {
+            "x": {"signal": "width / 4"},
+            "y": {"signal": "height / 6"},
+            "startAngle": {"signal": "max(0, min(2*PI, scale('x', datum.start)))"},
+            "endAngle": {"signal": "max(0, min(2*PI, scale('x', datum.start + datum.end)))"},
+            "innerRadius": { "signal": "max(0, scale('y', datum.inner))"},
+            "outerRadius": {"scale": "y", "field": "outer"},
+            "stroke": {"value": "white"},
+            "strokeWidth": {"value": 0.5},
+            "zindex": {"value": 0},
+            "tooltip": {
+              "signal": "{\"addr\":datum['addr'] + '', \"name\": datum['name'], \"elapsed\": datum['elapsed_ns'] + 'ns' }"
+            }
+          },
+          "hover": {
+            "stroke": {"value": "white"},
+            "strokeWidth": {"value": 1},
+            "zindex": {"value": 1}
+          }
         }
-      }
-    },    
-    {
+      },    
+      {
         "type": "rect",
         "from": {"data":"table"},
         "encode": {
@@ -196,17 +220,15 @@ let my_spec = {
             "fontSize": {"value": 20},
             "align": {"value": "right"},
             "x":{"value": 180},
-            "y":{"value": 400}
-            
+            "y":{"value": 400}  
           },
           "update": {
             "text": {"signal": "'current filter: ' + filterlist"}
-
           }
         }
       }
-  ]
-};
+    ]
+  };
 
     const back_button = document.getElementById('back');  
 
@@ -220,14 +242,10 @@ let my_spec = {
 
      view.insert('tree', {"addr": "[0,0]", "parent": null, "name": "Dataflow", "elapsed_ns": 0}).run();
      
-          
-
     let map_operates = new Map();
     let map_channels = new Map();
     let map_schedule = new Map();
     let map_messages = new Map();
-    
-
 
     let websocket = new WebSocket("ws://localhost:9000/ws/");
     websocket.addEventListener('message', (ev) => {
@@ -242,14 +260,12 @@ let my_spec = {
         view.signal('filterlist', cur.substring(0, cur.lastIndexOf(',')) + "]");
       };
 
-            
       let map_temp_ops = new Map();
       let map_temp_chs = new Map();
       let map_temp_sch = new Map();
       let map_temp_msg = new Map();   
       
       for (let update of updates) {
-       
         if(!!update.event.Operate){
           if(!map_temp_ops.has(update.event.Operate.id)){
             map_temp_ops.set(update.event.Operate.id, []);
@@ -258,7 +274,6 @@ let my_spec = {
         }
 
         else if(!!update.event.Channel){
- 
           if(!map_temp_chs.has(update.event.Channel.id)){
             map_temp_chs.set(update.event.Channel.id, []);
           }        
@@ -266,121 +281,112 @@ let my_spec = {
         
         }
         else if(!!update.event.Schedule){
-
           if(!map_temp_sch.has(update.event.Schedule.operate_id)){
             map_temp_sch.set(update.event.Schedule.operate_id, []);
           }        
-          map_temp_sch.get(update.event.Schedule.operate_id).push(update);
-    
+          map_temp_sch.get(update.event.Schedule.operate_id).push(update);  
         }
 
         else if (!!update.event.Messages){
-
           if(!map_temp_msg.has(update.event.Messages.channel_id)){
             map_temp_msg.set(update.event.Messages.channel_id, []);
           }        
           map_temp_msg.get(update.event.Messages.channel_id).push(update);
-        
         }
       }
 
       for(let [id,list] of map_temp_ops){
-         if(list.length == 1){
+        if(list.length == 1){
+          if(list[0].delta == 1){
+            map_operates.set(id, list[0].event.Operate);
+          }else {
+            map_operates.delete(id);
+          } 
+        }else if(list.length == 2){
+          if(list[0].delta == 1){
+            map_operates.set(id, list[0].event.Channel);
+          }else {
+            map_operates.delete(id);
+          }
+
+        }else {
+          console.error("More than 2 updates");
+        }
+      }
+
+      for(let [id,list] of map_temp_chs){
+        if(list.length == 1){
            
-             if(list[0].delta == 1){
-               map_operates.set(id, list[0].event.Operate);
+          if(list[0].delta == 1){
+            map_channels.set(id, list[0].event.Channel);
 
-              }else {
-                map_operates.delete(id);
-              } 
-         }else if(list.length == 2){
-              if(list[0].delta == 1){
-                map_operates.set(id, list[0].event.Channel);
-             }else {
-                map_operates.delete(id);
-             }
-
-         }else {
-           console.error("More than 2 updates");
+          }else {
+            map_channels.delete(id);
+          }
+           
+        }else if(list.length == 2){
+          if(list[0].delta == 1){
+            map_channels.set(id, list[0].event.Channel)
+          }else {
+            map_channels.set(id, list[1].event.Channel)
+          }
+        }else {
+          console.error("More than 2 updates");
          }
       }
 
-
-      for(let [id,list] of map_temp_chs){
-         if(list.length == 1){
-           
-             if(list[0].delta == 1){
-               map_channels.set(id, list[0].event.Channel);
-
-              }else {
-                map_channels.delete(id);
-              }
-           
-         }else if(list.length == 2){
-             if(list[0].delta == 1){
-               map_channels.set(id, list[0].event.Channel)
-             }else {
-                map_channels.set(id, list[1].event.Channel)
-             }
-         }else {
-           console.error("More than 2 updates");
-         }
+      for(let [id,o] of map_operates){
+        let obj = {
+          "addr": '[' + o.addr.toString() + ']', 
+          "parent": '[' + o.addr.toString().substring(0, o.addr.toString().lastIndexOf(',')) + ']',
+          "elapsed_ns": 0,
+          "name": o.name,
+          "id": id
+        }
+        if(!map_schedule.has(id)){
+          map_schedule.set(id, obj);
+          changeset.insert(obj);
+        }
       }
 
       for(let [id,list] of map_temp_sch){
-
-         if(list.length == 1){
-
-               let o = map_operates.get(id);
-               let obj = {"addr":  '[' + o.addr.toString() + ']', 
-                          "parent":  '[' + o.addr.toString().substring(0, o.addr.toString().lastIndexOf(',')) + ']',
-                          "elapsed_ns": list[0].event.Schedule.elapsed_ns,
-                          "name": o.name,
-                          "id": list[0].event.Schedule.operate_id
-                           };
-               
-              console.log(o);
-             if(list[0].delta == 1){
-              
-               changeset.insert(obj);
-               map_schedule.set(id, list[0].event.Schedule);     
-                 
-              }else {
-                map_schedule.delete(id);
-                changeset.remove((x) => x.id == list[0].event.Schedule.operate_id);
-              }
-         }else if(list.length == 2){
-             if(list[0].delta == 1){
-               
-               changeset.modify((x) => x.id == list[0].event.Schedule.operate_id, "elapsed_ns", list[0].event.Schedule.elapsed_ns);
-               map_schedule.set(id, list[0].event.Schedule);
-
-             }else {
-                
-                changeset.modify((x) => x.id == list[1].event.Schedule.operate_id, "elapsed_ns", list[1].event.Schedule.elapsed_ns);
-                map_schedule.set(id, list[1].event.Schedule);
-             }
-         }else {
+        if(list.length == 1){
+          if(list[0].delta == 1){    
+            changeset.modify((x) => x.id == list[0].event.Schedule.operate_id, "elapsed_ns", list[0].event.Schedule.elapsed_ns);
+            map_schedule.set(id, list[0].event.Schedule);          
+          }else {
+            map_schedule.delete(id);
+            changeset.remove((x) => x.id == list[0].event.Schedule.operate_id);
+          }
+        }else if(list.length == 2){
+          if(list[0].delta == 1){     
+            changeset.modify((x) => x.id == list[0].event.Schedule.operate_id, "elapsed_ns", list[0].event.Schedule.elapsed_ns);
+            map_schedule.set(id, list[0].event.Schedule);
+          }else {          
+            changeset.modify((x) => x.id == list[1].event.Schedule.operate_id, "elapsed_ns", list[1].event.Schedule.elapsed_ns);
+            map_schedule.set(id, list[1].event.Schedule);
+          }
+        }else {
           console.error("More than 2 updates");
-         }
+        }
       }
     
       for(let [id,list] of map_temp_msg){
-         if(list.length == 1){
-             if(list[0].delta == 1){
-               map_messages.set(id, list[0].event.Messages);
-              }else {
-                map_messages.delete(id);
-              }
-         }else if(list.length == 2){
-             if(list[0].delta == 1){
-               map_messages.set(id, list[0].event.Messages)
-             }else {
-                map_messages.set(id, list[1].event.Messages)
-             }
-         }else {
+        if(list.length == 1){
+          if(list[0].delta == 1){
+            map_messages.set(id, list[0].event.Messages);
+          }else {
+            map_messages.delete(id);
+          }
+        }else if(list.length == 2){
+          if(list[0].delta == 1){
+            map_messages.set(id, list[0].event.Messages)
+          }else {
+            map_messages.set(id, list[1].event.Messages)
+          }
+        }else {
           console.error("More than 2 updates");
-         }
+        }
       }
 
 
@@ -399,10 +405,8 @@ let my_spec = {
       
       
 
-     view.change('tree', changeset).run();
-      
+      view.change('tree', changeset).run(); 
     });
 
-  </script>
+</script>
 </body>
-
