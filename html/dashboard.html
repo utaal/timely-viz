@@ -141,7 +141,7 @@
       },
       {
         "name": "maxx",
-        "on": [{"events": "arc:click", "update": "datum.start + datum.end"}
+        "on": [{"events": "arc:click", "update": "datum.end"}
         ]
       },
       {
@@ -219,7 +219,7 @@
             "x": {"signal": "width / 4"},
             "y": {"signal": "height / 6"},
             "startAngle": {"signal": "max(0, min(2*PI, scale('x', datum.start)))"},
-            "endAngle": {"signal": "max(0, min(2*PI, scale('x', datum.start + datum.end)))"},
+            "endAngle": {"signal": "max(0, min(2*PI, scale('x', datum.end)))"},
             "innerRadius": { "signal": "max(0, scale('y', datum.inner))"},
             "outerRadius": {"scale": "y", "field": "outer"},
             "stroke": {"value": "white"},
