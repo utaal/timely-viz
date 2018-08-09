@@ -7,8 +7,28 @@
     
 <button id="back">back</button>
 
-<div id="view"></div>
-<div id="view-rhs"></div>
+  <div id="view"></div>
+  <div id="view-rhs">
+    <div id="details-list">
+      <h2 class="title"> Description </h2>
+        <ul>
+          <li>
+            <span class="name">Operator name: </span>
+            <span class="operate_name_update"> </span>
+          </li>
+          <li>
+            <span class="elapsed">Elapsed time in ns: </span>
+            <span class="elapsed_ns_update"> </span>
+          </li>
+          <li>
+            <span class="total_count">Total count: </span>
+            <span class="total_count_update"></span>
+          </li>
+          <ul id="update">
+          </ul>
+        </ul>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -36,8 +56,28 @@
   }
   #view-rhs{
     float:right;
+    padding-right: 500px;
+  }
+  #details-list{
+    margin: 30px;
+  }
+  #details-list ul{
+    list-style-type: none;
+    padding: 0;
+  }
+  #details-list li{
+    padding: 10px;
+    border-left: 10px solid #ddd;
+    margin: 10px 10px;
+    font-size: 20px;
+  }
+  .operate_name_update, .input_update, .output_update, .elapsed_ns_update, .total_count_update{
+    float: right;
+    padding-left: 5px;
     padding-right: 10px;
-  } 
+    
+  }
+
 </style>
 
 <script type="text/javascript">
@@ -103,6 +143,12 @@
         "name": "maxx",
         "on": [{"events": "arc:click", "update": "datum.start + datum.end"}
         ]
+      },
+      {
+        "name": "sunburst_data",
+        "value": "datum",
+        "on": [{"events": "arc:click", "update": "datum"},{"events": "rect:click", "update": "datum"}
+        ] 
       }
     ],
     "scales": [
@@ -239,13 +285,42 @@
     .initialize('#view') // initialize view within parent DOM container
     .hover()             // enable hover encode set processing
     .run();
+    
 
-     view.insert('tree', {"addr": "[0,0]", "parent": null, "name": "Dataflow", "elapsed_ns": 0}).run();
+    view.insert('tree', {"addr": "[0,0]", "parent": null, "name": "Dataflow", "elapsed_ns": 0}).run();
      
     let map_operates = new Map();
     let map_channels = new Map();
     let map_schedule = new Map();
     let map_messages = new Map();
+
+    view.addSignalListener('sunburst_data', function (name, value){
+      view.runAfter(function (view) {view.signal('filterlist', value.addr); view.run();});
+    });
+
+    view.addSignalListener('sunburst_data', function (name, value){
+      let operates = [];
+      let channels = [];
+      for(let [id, o] of map_operates){
+        let parent ='[' + o.addr.toString().substring(0, o.addr.toString().lastIndexOf(',')) + ']';
+        if(parent == value.addr){
+          operates.push(o);
+        }
+      }
+      for (let [id, o] of map_channels){
+        let parent ='[' + o.from_addr.toString().substring(0, o.from_addr.toString().lastIndexOf(',')) + ']';
+        if(value.addr == parent){
+          channels.push(o);
+        }
+      }
+      update_graph(operates, channels);
+    });
+
+    
+    back_button.onclick = () => {
+      let cur = view.signal('filterlist');
+      view.signal('filterlist', cur.substring(0, cur.lastIndexOf(',')) + "]");
+    };
 
     let websocket = new WebSocket("ws://localhost:9000/ws/");
     websocket.addEventListener('message', (ev) => {
@@ -255,10 +330,6 @@
       let changeset = vega.changeset();
       let changeset_msgs = vega.changeset();
 
-      back_button.onclick = () => {
-        let cur = view.signal('filterlist');
-        view.signal('filterlist', cur.substring(0, cur.lastIndexOf(',')) + "]");
-      };
 
       let map_temp_ops = new Map();
       let map_temp_chs = new Map();
@@ -388,25 +459,57 @@
           console.error("More than 2 updates");
         }
       }
-
-
-          /*
-
-                      let obj = {"id": update.event.Channel.id,
-                     "from_addr": update.event.Channel.from_addr.toString(),
-                     "from_port": update.event.Channel.from_port,
-                     "to_addr": update.event.Channel.to_addr.toString(),
-                     "to_port": update.event.Channel.to_port,
-                     "delta": update.delta
-                    };
-
-                    };
-            */
+    
+    
+    document.querySelector('#view-rhs li .operate_name_update').innerHTML = view.signal('sunburst_data').name;
+    document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = view.signal('sunburst_data').elapsed_ns;
       
-      
-
-      view.change('tree', changeset).run(); 
+  
+    view.change('tree', changeset).run();     
+    
     });
+    
+  view.addSignalListener('sunburst_data', function (name, value){
+    
+    //to erase previous input & output data
+    let input_out = document.getElementById("update");
+    while (input_out.firstChild) {
+      input_out.removeChild(input_out.firstChild);
+    }
+
+    let input_output = [];
+    for (let [id, o] of map_channels){
+      let from_addr = '[' + o.from_addr.toString() + ']';
+      let to_addr = '[' + o.to_addr.toString() + ']';
+
+      if(value.addr == to_addr){
+        let inp = "Input "  + o.to_port + " : " +  o.from_addr;
+        input_output.push(inp);
+      }
+      else if(value.addr == from_addr ){  
+        let out = "Output " + o.from_port + " : " + o.to_addr;
+        input_output.push(out);      
+        let total_cnt = map_messages.get(o.id).total_count;
+        document.querySelector('#view-rhs li .total_count_update').innerHTML = total_cnt;
+      }
+
+    }
+
+    //create list elements dynamically based on the input_output array
+    let update_list = document.querySelector("ul #update");
+      for (let o of input_output) {
+        list_value = document.createElement("li");
+        list_value.textContent = o;
+        update_list.appendChild(list_value);
+      }  
+    
+  });
+
+  
+  function update_graph(operates, channels){
+    console.log(operates);
+    console.log(channels);
+  }
 
 </script>
 </body>
