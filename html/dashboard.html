@@ -1,5 +1,7 @@
 <head>
   <script src="https://vega.github.io/vega/vega.js"></script>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://dagrejs.github.io/project/dagre-d3/latest/dagre-d3.js"></script>
 </head>
 <body>
 
@@ -27,6 +29,8 @@
           <ul id="update">
           </ul>
         </ul>
+    </div>
+    <div id="graph">
     </div>
   </div>
 </div>
@@ -56,7 +60,7 @@
   }
   #view-rhs{
     float:right;
-    padding-right: 500px;
+    padding-right: 10px;
   }
   #details-list{
     margin: 30px;
@@ -75,7 +79,20 @@
     float: right;
     padding-left: 5px;
     padding-right: 10px;
-    
+  }
+  #graph {
+    border: 1px solid black;
+  }
+  .graph_node {
+    stroke: #000; stroke-width: 1px;
+    fill: white;
+  }
+  .graph_node .label {
+    stroke-width: 0;
+    fill: black;
+  }
+  #graph .edgePath {
+    stroke: #000; stroke-width: 1px;
   }
 
 </style>
@@ -83,7 +100,7 @@
 <script type="text/javascript">
   let my_spec = {
     "$schema": "https://vega.github.io/schema/vega/v4.json",
-    "width": 600,
+    "width": 500,
     "height": 1000,
     "padding": 80,
     "autosize": "fit",
@@ -505,11 +522,51 @@
     
   });
 
+  view.addSignalListener('sunburst_data', function (name, value) {
+    console.log(value);
+  });
+
+  let render = new dagreD3.render();
+  let svg_parent = d3.select("#graph").append("svg").attr("width", 600).attr("height", 400);
+  let svg = svg_parent.append("g");
+
+  var zoom = d3.zoom()
+      .on("zoom", function() {
+        svg.attr("transform", d3.event.transform);
+        return false;
+      });
+  svg_parent.call(zoom);
   
   function update_graph(operates, channels){
-    console.log(operates);
-    console.log(channels);
+    let g = new dagreD3.graphlib.Graph({});
+    g.setGraph({
+      nodesep: 5,
+      ranksep: 5,
+    });
+    for (let operator of operates) {
+      // let html = "<div class=\"graph_node\">";
+      // html += "<span class=\"graph_operator_name\">" + operator.name + "</span>";
+      // html += " (<span class=\"graph_operator_addr\">" + operator.addr + "</span>)";
+      // html += "</div>";
+      g.setNode("" + operator.addr, {
+        label: operator.name + " (" + operator.addr + ")",
+        class: "graph_node",
+        rx: 5,
+        ry: 5,
+      });
+    }
+    let nodes = g.nodes();
+    for (let channel of channels) {
+      if (nodes.indexOf("" + channel.from_addr) >= 0 && nodes.indexOf("" + channel.to_addr) >= 0) {
+        g.setEdge("" + channel.from_addr, "" + channel.to_addr, {
+          label: channel.id,
+        });
+      }
+    }
+
+    svg.call(render, g);
   }
+
 
 </script>
 </body>
