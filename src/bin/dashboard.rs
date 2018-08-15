@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use timely::dataflow::operators::{Map, capture::Replay};
 use timely::progress::timestamp::RootTimestamp;
 use timely::logging::TimelyEvent::{Operates, Schedule, Channels, Messages};
-use timely::dataflow::operators::{Operator, Concat};
+use timely::dataflow::operators::{Operator, Concat, Filter};
 
 use differential_dataflow::AsCollection;
 use differential_dataflow::operators::{Count, Consolidate};
@@ -135,6 +135,7 @@ fn main() {
                     }
                 )
                 .as_collection()
+                .filter(|x| x.addr[0] == 0)
                 .map(|x| (x.id, x.addr, x.name))
                 .consolidate()
                 .inner
@@ -164,6 +165,7 @@ fn main() {
                 .as_collection()
                 .consolidate()
                 .inner
+                .filter(|x| (x.0).1[0] == 0)
                 .map(|((id, scope_addr, source, target), _time, diff)| {
 
                     let mut from_addr = scope_addr.clone();
