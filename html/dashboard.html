@@ -6,11 +6,10 @@
 <body>
 
 <div id="container">
-    
-<button id="back">back</button>
 
-  <div id="view"></div>
+  <div id="view-lhs"></div>
   <div id="view-rhs">
+    <button id="back">back</button>
     <div id="details-list">
       <h2 class="title"> Description </h2>
         <ul>
@@ -36,6 +35,11 @@
 </div>
 
 <style>
+  #container{
+    display:flex;
+    flex-direction: row;
+    justify-content: center;
+  }
   #back{
     padding: 10px 25px;
     font-size: 24px;
@@ -46,21 +50,15 @@
     border: none;
     border-radius: 10px;
     box-shadow: 0 4px #999;
-    position:relative;
+    position:absolute;
+    left:50;
+    top: 80;
   }
   #back:hover {
     background-color: #4192f4
   }
   #back:active {
     background-color: #3e8e41;
-  }
-  #view{
-    float:left;
-    padding-left:10px;
-  }
-  #view-rhs{
-    float:right;
-    padding-right: 10px;
   }
   #details-list{
     margin: 30px;
@@ -299,7 +297,7 @@
     vega.View(vega.parse(my_spec))
     .logLevel(vega.Warn)
     .renderer('canvas')  // set renderer (canvas or svg)
-    .initialize('#view') // initialize view within parent DOM container
+    .initialize('#view-lhs') // initialize view within parent DOM container
     .hover()             // enable hover encode set processing
     .run();
     
@@ -476,17 +474,19 @@
           console.error("More than 2 updates");
         }
       }
-    
-    
-    document.querySelector('#view-rhs li .operate_name_update').innerHTML = view.signal('sunburst_data').name;
-    document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = view.signal('sunburst_data').elapsed_ns;
-      
-  
+          
     view.change('tree', changeset).run();     
     
     });
     
+  document.querySelector('#view-rhs li .operate_name_update').innerHTML = "Dataflow";
+  document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = "0";
+  document.querySelector('#view-rhs li .total_count_update').innerHTML = "0";
+     
   view.addSignalListener('sunburst_data', function (name, value){
+
+    document.querySelector('#view-rhs li .operate_name_update').innerHTML = value.name;
+    document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = value.elapsed_ns;
     
     //to erase previous input & output data
     let input_out = document.getElementById("update");
