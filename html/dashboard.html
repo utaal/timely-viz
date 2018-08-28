@@ -50,8 +50,8 @@
     border: none;
     border-radius: 10px;
     box-shadow: 0 4px #999;
-    position:absolute;
-    left:50;
+    position:relative;
+    left:-100;
     top: 80;
   }
   #back:hover {
@@ -100,11 +100,15 @@
     "$schema": "https://vega.github.io/schema/vega/v4.json",
     "width": 500,
     "height": 1000,
-    "padding": 80,
+    "padding": 50,
     "autosize": "fit",
     "data": [
       {
         "name": "tree",
+        "values":[]
+      },
+      {
+        "name": "messages",
         "values":[]
       },
       {
@@ -191,8 +195,8 @@
         "name": "yscale",
         "type": "band",
         "domain": {"data": "table", "field": "addr"},
-        "range": [950,400],
-        "padding": 0.03,
+        "range": [960,400],
+        "padding": 0.04,
         "round": true
       },
       {
@@ -207,7 +211,7 @@
         "orient": "left", 
         "scale": "yscale",
         "titlePadding": 15,
-        "title": "addr",
+        "title": "address",
         "titleFontSize": 16,
         "labelFontSize": 14
       },
@@ -215,7 +219,7 @@
         "orient": "bottom",
         "scale": "xscale",
         "labelOverlap": "parity",
-        "title": "elapsed_ns",
+        "title": "elapsed time in ns",
         "titleFontSize": 16,
         "labelFontSize": 14
       }
@@ -303,6 +307,7 @@
     
 
     view.insert('tree', {"addr": "[0,0]", "parent": null, "name": "Dataflow", "elapsed_ns": 0}).run();
+    view.insert('messages', {"channel_id": 0, "count": 0 }).run();
      
     let map_operates = new Map();
     let map_channels = new Map();
@@ -435,6 +440,17 @@
         }
       }
 
+      for(let [id,o] of map_channels){
+        let obj = {
+          "channel_id": id,
+          "total_count": 0
+        }
+        if(!map_messages.has(id)){
+          map_messages.set(id,obj);
+          changeset_msgs.insert(obj);
+        }
+      }
+
       for(let [id,list] of map_temp_sch){
         if(list.length == 1){
           if(list[0].delta == 1){    
@@ -460,33 +476,42 @@
       for(let [id,list] of map_temp_msg){
         if(list.length == 1){
           if(list[0].delta == 1){
+            changeset_msgs.modify((x) => x.id == list[0].event.Messages.channel_id, "total_count", list[0].event.Messages.total_count);
             map_messages.set(id, list[0].event.Messages);
           }else {
             map_messages.delete(id);
+            changeset_msgs.remove((x) => x.id == list[0].event.Messages.channel_id);
           }
         }else if(list.length == 2){
           if(list[0].delta == 1){
+            changeset_msgs.modify((x) => x.id == list[0].event.Messages.channel_id, "total_count", list[0].event.Messages.total_count);
             map_messages.set(id, list[0].event.Messages)
           }else {
+            changeset_msgs.modify((x) => x.id == list[1].event.Messages.channel_id, "total_count", list[0].event.Messages.total_count);
             map_messages.set(id, list[1].event.Messages)
           }
         }else {
           console.error("More than 2 updates");
         }
       }
-          
-    view.change('tree', changeset).run();     
     
+     document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = view.signal('sunburst_data').elapsed_ns;
+     //document.querySelector('#view-rhs li .total_count_update').innerHTML;
+
+
+    view.change('tree', changeset).run();
+    view.change('messages', changeset_msgs).run();       
     });
+
+ 
     
   document.querySelector('#view-rhs li .operate_name_update').innerHTML = "Dataflow";
   document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = "0";
   document.querySelector('#view-rhs li .total_count_update').innerHTML = "0";
      
-  view.addSignalListener('sunburst_data', function (name, value){
+  view.addSignalListener('sunburst_data', function (name, value){ 
 
     document.querySelector('#view-rhs li .operate_name_update').innerHTML = value.name;
-    document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = value.elapsed_ns;
     
     //to erase previous input & output data
     let input_out = document.getElementById("update");
