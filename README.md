@@ -46,7 +46,7 @@ then start the computation we're examining (as before).
 
 ## Steps to run this program
 1. create a new directory/folder
-2. go to just created directory and  git clone https://github.com/frankmcsherry/differential-dataflow.git
+2. go to created directory and  git clone https://github.com/frankmcsherry/differential-dataflow.git
 3. git clone https://github.com/utaal/timely-viz.git
 4. $ cd timely-viz
 5. timely-viz$ cargo run --bin dashboard -- 2 html/dashboard.html
