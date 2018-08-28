@@ -41,7 +41,7 @@
     justify-content: center;
   }
   #back{
-    padding: 10px 25px;
+    padding: 5px 15px;
     font-size: 24px;
     text-align: center;
     outline: none;
@@ -74,7 +74,6 @@
     font-size: 20px;
   }
   .operate_name_update, .input_update, .output_update, .elapsed_ns_update, .total_count_update{
-    float: right;
     padding-left: 5px;
     padding-right: 10px;
   }
@@ -105,10 +104,6 @@
     "data": [
       {
         "name": "tree",
-        "values":[]
-      },
-      {
-        "name": "messages",
         "values":[]
       },
       {
@@ -196,7 +191,7 @@
         "type": "band",
         "domain": {"data": "table", "field": "addr"},
         "range": [960,400],
-        "padding": 0.04,
+        "padding": 0.03,
         "round": true
       },
       {
@@ -307,7 +302,6 @@
     
 
     view.insert('tree', {"addr": "[0,0]", "parent": null, "name": "Dataflow", "elapsed_ns": 0}).run();
-    view.insert('messages', {"channel_id": 0, "count": 0 }).run();
      
     let map_operates = new Map();
     let map_channels = new Map();
@@ -431,23 +425,13 @@
           "addr": '[' + o.addr.toString() + ']', 
           "parent": '[' + o.addr.toString().substring(0, o.addr.toString().lastIndexOf(',')) + ']',
           "elapsed_ns": 0,
+          "count":0,
           "name": o.name,
           "id": id
         }
         if(!map_schedule.has(id)){
           map_schedule.set(id, obj);
           changeset.insert(obj);
-        }
-      }
-
-      for(let [id,o] of map_channels){
-        let obj = {
-          "channel_id": id,
-          "total_count": 0
-        }
-        if(!map_messages.has(id)){
-          map_messages.set(id,obj);
-          changeset_msgs.insert(obj);
         }
       }
 
@@ -476,42 +460,33 @@
       for(let [id,list] of map_temp_msg){
         if(list.length == 1){
           if(list[0].delta == 1){
-            changeset_msgs.modify((x) => x.id == list[0].event.Messages.channel_id, "total_count", list[0].event.Messages.total_count);
             map_messages.set(id, list[0].event.Messages);
           }else {
             map_messages.delete(id);
-            changeset_msgs.remove((x) => x.id == list[0].event.Messages.channel_id);
           }
         }else if(list.length == 2){
           if(list[0].delta == 1){
-            changeset_msgs.modify((x) => x.id == list[0].event.Messages.channel_id, "total_count", list[0].event.Messages.total_count);
             map_messages.set(id, list[0].event.Messages)
           }else {
-            changeset_msgs.modify((x) => x.id == list[1].event.Messages.channel_id, "total_count", list[0].event.Messages.total_count);
             map_messages.set(id, list[1].event.Messages)
           }
         }else {
           console.error("More than 2 updates");
         }
       }
+    document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = view.signal('sunburst_data').elapsed_ns;
+    view.change('tree', changeset).run();     
     
-     document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = view.signal('sunburst_data').elapsed_ns;
-     //document.querySelector('#view-rhs li .total_count_update').innerHTML;
-
-
-    view.change('tree', changeset).run();
-    view.change('messages', changeset_msgs).run();       
     });
-
- 
     
   document.querySelector('#view-rhs li .operate_name_update').innerHTML = "Dataflow";
   document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = "0";
   document.querySelector('#view-rhs li .total_count_update').innerHTML = "0";
      
-  view.addSignalListener('sunburst_data', function (name, value){ 
+  view.addSignalListener('sunburst_data', function (name, value){
 
     document.querySelector('#view-rhs li .operate_name_update').innerHTML = value.name;
+    document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = value.elapsed_ns;
     
     //to erase previous input & output data
     let input_out = document.getElementById("update");
@@ -531,8 +506,10 @@
       else if(value.addr == from_addr ){  
         let out = "Output " + o.from_port + " : " + o.to_addr;
         input_output.push(out);      
-        let total_cnt = map_messages.get(o.id).total_count;
-        document.querySelector('#view-rhs li .total_count_update').innerHTML = total_cnt;
+        let total_cnt = map_messages.get(id).total_count;
+        document.querySelector('#view-rhs li .total_count_update').innerHTML = total_cnt;     
+        
+     
       }
 
     }
