@@ -42,3 +42,14 @@ $ cargo run --bin schedule -- 4
 
 Open a browser at http://localhost:9000
 then start the computation we're examining (as before).
+
+
+## Steps to run this program
+1. create a new directory/folder
+2. go to just created directory and  git clone https://github.com/frankmcsherry/differential-dataflow.git
+3. git clone https://github.com/utaal/timely-viz.git
+4. $ cd timely-viz
+5. timely-viz$ cargo run --bin dashboard -- 2 html/dashboard.html
+6. open a browser on http://localhost:9000/
+7. open a new terminal and go to the differential dataflow directory
+8. differential-dataflow$ TIMELY_WORKER_LOG_ADDR="127.0.0.1:8000" cargo run --release --example bfs -- 1000 1000 100 1000 no -w2 (we are using bfs example, you can give any timely computation)
