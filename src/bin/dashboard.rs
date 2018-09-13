@@ -12,12 +12,13 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 
+use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 use timely::dataflow::operators::{Map, capture::Replay};
 use timely::progress::timestamp::RootTimestamp;
 use timely::logging::TimelyEvent::{Operates, Schedule, Channels, Messages};
-use timely::dataflow::operators::{Operator, Concat, Filter};
+use timely::dataflow::operators::{Operator, Concat, Filter, Inspect};
 
 use differential_dataflow::AsCollection;
 use differential_dataflow::operators::{Count, Consolidate};
@@ -119,15 +120,16 @@ fn main() {
 
         let shift = 25;
 
-        worker.dataflow::<u64,_,_>(|scope| {
+        worker.dataflow::<Duration,_,_>(|scope| {
 
             let replayed = replayers.replay_into(scope);
 
             let operates =
             replayed
+                // .inspect(|x| println!("event {:?}", x))
                 .flat_map(move |(ts, _setup, datum)|
                     if let Operates(event) = datum {
-                        let ts = ((ts >> shift) + 1) << shift;
+                        let ts = Duration::from_secs(ts.as_secs() + 1);
                         Some((event, RootTimestamp::new(ts), 1))
                     }
                     else {
@@ -155,7 +157,7 @@ fn main() {
             replayed
                 .flat_map(move |(ts,_,x)|
                     if let Channels(event) = x {
-                        let ts = ((ts >> shift) + 1) << shift;
+                        let ts = Duration::from_secs(ts.as_secs() + 1);
                         Some(((event.id, event.scope_addr, event.source, event.target), RootTimestamp::new(ts), 1 as isize))
                     }
                     else {
@@ -190,7 +192,7 @@ fn main() {
             replayed
                 .flat_map(move |(ts,_,x)|
                     if let Messages(event) = x {
-                        let ts = ((ts >> shift) + 1) << shift;
+                        let ts = Duration::from_secs(ts.as_secs() + 1);
                         Some((event.channel, RootTimestamp::new(ts), event.length as isize))
                     }
                     else {
@@ -212,7 +214,7 @@ fn main() {
 
             let schedule =
             replayed
-                .flat_map(move |(ts, setup, x)| if let Schedule(event) = x { Some((ts, setup.index, event)) } else { None })
+                .flat_map(move |(ts, worker, x)| if let Schedule(event) = x { Some((ts, worker, event)) } else { None })
                 .unary(timely::dataflow::channels::pact::Pipeline, "Schedules", |_,_| {
 
                     let mut map = std::collections::HashMap::new();
@@ -234,8 +236,10 @@ fn main() {
                                         assert!(map.contains_key(&key));
                                         let start = map.remove(&key).unwrap();
                                         // if work {
-                                            let ts_clip = ((ts >> 25) + 1) << 25;
-                                            session.give((key.1, RootTimestamp::new(ts_clip), (ts - start) as isize));
+                                            let ts_clip = Duration::from_secs(ts.as_secs() + 1);
+                                            let elapsed = ts - start;
+                                            let elapsed_ns = (elapsed.as_secs() as isize) * 1_000_000_000 + (elapsed.subsec_nanos() as isize);
+                                            session.give((key.1, RootTimestamp::new(ts_clip), elapsed_ns));
                                         // }
                                     }
                                 }
@@ -283,6 +287,7 @@ fn main() {
                     if !updates.is_empty() {
                         for chan in endpoint.lock().unwrap().iter_mut() {
                             let updates = Updates { updates: updates.clone() };
+                            println!("Sending updates: {:?}", updates.updates.len());
                             chan.send(updates).wait().unwrap();
                         }
                     }
@@ -290,6 +295,8 @@ fn main() {
         });
 
     }).unwrap(); // asserts error-free execution
+
+    println!("TIMELY COMPLETE");
 
     }));
 
