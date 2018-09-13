@@ -5,11 +5,11 @@ authors = ["Andrea Lattuada <andrea.lattuada@inf.ethz.ch>"]
 
 
 [dependencies]
-abomonation = "0.5"
+abomonation = { git = "https://github.com/frankmcsherry/abomonation" }
 abomonation_derive = "0.3"
-timely_communication = "^0.6"
-timely = "^0.6"
-differential-dataflow = { git = "https://github.com/frankmcsherry/differential-dataflow" }
+#timely_communication = "^0.6"
+timely = { git = "https://github.com/frankmcsherry/timely-dataflow", branch = "logging_revamp" }
+differential-dataflow = { git = "https://github.com/frankmcsherry/differential-dataflow", branch = "logging" }
 fnv="1.0.2"
 futures = "^0.1"
 actix = "^0.5"

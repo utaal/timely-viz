@@ -216,12 +216,14 @@ fn main() {
                 .unary(timely::dataflow::channels::pact::Pipeline, "Schedules", |_,_| {
 
                     let mut map = std::collections::HashMap::new();
+                    let mut vec = Vec::new();
 
                     move |input, output| {
 
                         input.for_each(|time, data| {
+                            data.swap(&mut vec);
                             let mut session = output.session(&time);
-                            for (ts, worker, event) in data.drain(..) {
+                            for (ts, worker, event) in vec.drain(..) {
                                 let key = (worker, event.id);
                                 match event.start_stop {
                                     timely::logging::StartStop::Start => {
@@ -261,9 +263,10 @@ fn main() {
                 .sink(timely::dataflow::channels::pact::Pipeline, "ToVega", move |input| {
 
                     let mut updates = Vec::new();
-
+                    let mut vec = Vec::new();
                     input.for_each(|_time, dataz| {
-                        for update in dataz.drain(..) {
+                        dataz.swap(&mut vec);
+                        for update in vec.drain(..) {
                             updates.push(update);
                         }
                     });
