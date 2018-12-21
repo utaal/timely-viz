@@ -12,7 +12,6 @@ extern crate serde_json;
 use std::sync::{Arc, Mutex};
 
 use timely::dataflow::operators::{Map, capture::Replay};
-use timely::progress::timestamp::RootTimestamp;
 use timely::logging::TimelyEvent::{Operates, Schedule};
 use timely::dataflow::operators::Operator;
 
@@ -89,7 +88,7 @@ fn main() {
                 .flat_map(|(ts, _setup, datum)|
                     if let Operates(event) = datum {
                         let ts = ((ts >> 25) + 1) << 25;
-                        Some((event, RootTimestamp::new(ts), 1))
+                        Some((event, ts, 1))
                     }
                     else {
                         None
@@ -121,7 +120,7 @@ fn main() {
                                         let end = map.remove(&key).unwrap();
                                         if work {
                                             let ts = ((ts >> 25) + 1) << 25;
-                                            session.give((key.1, RootTimestamp::new(ts), (ts - end) as isize));
+                                            session.give((key.1, ts, (ts - end) as isize));
                                         }
                                     }
                                 }

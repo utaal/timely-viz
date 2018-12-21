@@ -5,7 +5,6 @@ extern crate timely_viz;
 extern crate abomonation;
 
 use timely::dataflow::operators::{Map, capture::Replay};
-use timely::progress::timestamp::RootTimestamp;
 use timely::logging::TimelyEvent::{Operates, Channels};
 
 use differential_dataflow::collection::AsCollection;
@@ -33,7 +32,7 @@ fn main() {
             stream
                 .flat_map(|(t,_,x)| {
                     if let Operates(event) = x {
-                        Some((event, RootTimestamp::new(t), 1 as isize))
+                        Some((event, t, 1 as isize))
                     } else {
                         None
                     }
@@ -48,7 +47,7 @@ fn main() {
             stream
                 .flat_map(|(t,_,x)| {
                     if let Channels(event) = x {
-                        Some((event, RootTimestamp::new(t), 1 as isize))
+                        Some((event, t, 1 as isize))
                     } else {
                         None
                     }

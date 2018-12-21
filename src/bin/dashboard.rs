@@ -15,7 +15,6 @@ extern crate serde_json;
 use std::sync::{Arc, Mutex};
 
 use timely::dataflow::operators::{Map, capture::Replay};
-use timely::progress::timestamp::RootTimestamp;
 use timely::logging::TimelyEvent::{Operates, Schedule, Channels, Messages};
 use timely::dataflow::operators::{Operator, Concat, Filter};
 
@@ -128,7 +127,7 @@ fn main() {
                 .flat_map(move |(ts, _setup, datum)|
                     if let Operates(event) = datum {
                         let ts = ((ts >> shift) + 1) << shift;
-                        Some((event, RootTimestamp::new(ts), 1))
+                        Some((event, ts, 1))
                     }
                     else {
                         None
@@ -156,7 +155,7 @@ fn main() {
                 .flat_map(move |(ts,_,x)|
                     if let Channels(event) = x {
                         let ts = ((ts >> shift) + 1) << shift;
-                        Some(((event.id, event.scope_addr, event.source, event.target), RootTimestamp::new(ts), 1 as isize))
+                        Some(((event.id, event.scope_addr, event.source, event.target), ts, 1 as isize))
                     }
                     else {
                         None
@@ -191,7 +190,7 @@ fn main() {
                 .flat_map(move |(ts,_,x)|
                     if let Messages(event) = x {
                         let ts = ((ts >> shift) + 1) << shift;
-                        Some((event.channel, RootTimestamp::new(ts), event.length as isize))
+                        Some((event.channel, ts, event.length as isize))
                     }
                     else {
                         None
@@ -221,7 +220,7 @@ fn main() {
 
                         input.for_each(|time, data| {
                             let mut session = output.session(&time);
-                            for (ts, worker, event) in data.drain(..) {
+                            for (ts, worker, event) in data.iter().cloned() {
                                 let key = (worker, event.id);
                                 match event.start_stop {
                                     timely::logging::StartStop::Start => {
@@ -232,8 +231,8 @@ fn main() {
                                         assert!(map.contains_key(&key));
                                         let start = map.remove(&key).unwrap();
                                         // if work {
-                                            let ts_clip = ((ts >> 25) + 1) << 25;
-                                            session.give((key.1, RootTimestamp::new(ts_clip), (ts - start) as isize));
+                                            let ts_clip = ((ts >> 25) + (1 as u64)) << 25;
+                                            session.give((key.1, ts_clip, (ts - start) as isize));
                                         // }
                                     }
                                 }
@@ -263,7 +262,7 @@ fn main() {
                     let mut updates = Vec::new();
 
                     input.for_each(|_time, dataz| {
-                        for update in dataz.drain(..) {
+                        for update in dataz.iter().cloned() {
                             updates.push(update);
                         }
                     });
