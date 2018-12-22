@@ -15,7 +15,7 @@ use timely::dataflow::operators::{Map, capture::Replay};
 use timely::logging::TimelyEvent::{Operates, Schedule};
 use timely::dataflow::operators::Operator;
 
-use differential_dataflow::AsCollection;
+use differential_dataflow::{Collection, AsCollection};
 use differential_dataflow::operators::{Join, Count};
 
 use actix::*;
@@ -96,31 +96,35 @@ fn main() {
                 )
                 .as_collection();
 
-            let schedule =
+            let schedule: Collection<_,_,isize> =
             replayed
                 .flat_map(|(ts, setup, x)| if let Schedule(event) = x { Some((ts, setup.index, event)) } 
                     else { None })
                 .unary(timely::dataflow::channels::pact::Pipeline, "Schedules", |_,_| {
 
                     let mut map = std::collections::HashMap::new();
+                    let mut vector = Vec::new();
 
                     move |input, output| {
 
+                        let map = &mut map;
                         input.for_each(|time, data| {
+                            data.swap(&mut vector);
+
                             let mut session = output.session(&time);
-                            for (ts, worker, event) in data.drain(..) {
-                                let key = (worker, event.id);
+                            for (ts, workeridx, event) in vector.iter_mut() {
+                                let key = (*workeridx, event.id);
                                 match event.start_stop {
                                     timely::logging::StartStop::Start => {
                                         assert!(!map.contains_key(&key));
-                                        map.insert(key, ts);
+                                        map.insert(key, *ts);
                                     },
                                     timely::logging::StartStop::Stop { activity: work } => {
                                         assert!(map.contains_key(&key));
                                         let end = map.remove(&key).unwrap();
                                         if work {
-                                            let ts = ((ts >> 25) + 1) << 25;
-                                            session.give((key.1, ts, (ts - end) as isize));
+                                          let ts = ((*ts >> 25) + 1u64) << 25;
+                                          session.give((key.1, ts, (ts as isize - (end as isize)) as isize));
                                         }
                                     }
                                 }
