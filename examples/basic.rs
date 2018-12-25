@@ -4,6 +4,8 @@ extern crate timely_viz;
 
 extern crate abomonation;
 
+use std::time::Duration;
+
 use timely::dataflow::operators::{Map, capture::Replay};
 use timely::logging::TimelyEvent::{Operates, Channels};
 
@@ -23,7 +25,7 @@ fn main() {
 
         let replayers = timely_viz::make_replayers(sockets, worker.index(), worker.peers());
 
-        worker.dataflow(|scope| {
+        worker.dataflow::<Duration,_,_>(|scope| {
             let stream =
             replayers
                 .replay_into(scope);

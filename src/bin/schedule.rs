@@ -9,6 +9,7 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 
+use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 use timely::dataflow::operators::{Map, capture::Replay};
@@ -87,7 +88,7 @@ fn main() {
             replayed
                 .flat_map(|(ts, _setup, datum)|
                     if let Operates(event) = datum {
-                        let ts = ((ts >> 25) + 1) << 25;
+                        let ts = Duration::from_secs(ts.as_secs() + 1);
                         Some((event, ts, 1))
                     }
                     else {
@@ -98,17 +99,19 @@ fn main() {
 
             let schedule =
             replayed
-                .flat_map(|(ts, setup, x)| if let Schedule(event) = x { Some((ts, setup.index, event)) } 
+                .flat_map(|(ts, worker, x)| if let Schedule(event) = x { Some((ts, worker, event)) } 
                     else { None })
                 .unary(timely::dataflow::channels::pact::Pipeline, "Schedules", |_,_| {
 
                     let mut map = std::collections::HashMap::new();
-
+                    let mut vec = Vec::new();
+                    
                     move |input, output| {
 
                         input.for_each(|time, data| {
+                            data.swap(&mut vec);
                             let mut session = output.session(&time);
-                            for (ts, worker, event) in data.drain(..) {
+                            for (ts, worker, event) in vec.drain(..) {
                                 let key = (worker, event.id);
                                 match event.start_stop {
                                     timely::logging::StartStop::Start => {
@@ -119,8 +122,10 @@ fn main() {
                                         assert!(map.contains_key(&key));
                                         let end = map.remove(&key).unwrap();
                                         if work {
-                                            let ts = ((ts >> 25) + 1) << 25;
-                                            session.give((key.1, ts, (ts - end) as isize));
+                                            let ts_clip = Duration::from_secs(ts.as_secs() + 1);
+                                            let elapsed = ts - end;
+                                            let elapsed_ns = (elapsed.as_secs() as isize) * 1_000_000_000 + (elapsed.subsec_nanos() as isize);
+                                            session.give((key.1, ts_clip, elapsed_ns));
                                         }
                                     }
                                 }
