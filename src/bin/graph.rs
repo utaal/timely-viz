@@ -16,7 +16,6 @@ extern crate serde_json;
 use std::sync::{Arc, Mutex};
 
 use timely::dataflow::operators::{Map, capture::Replay, Concat, Inspect};
-use timely::progress::timestamp::RootTimestamp;
 use timely::logging::TimelyEvent::{Operates, Channels};
 
 use differential_dataflow::collection::AsCollection;
@@ -95,12 +94,12 @@ fn main() {
 
             let operates =
             stream
-                .flat_map(|(t,_,x)| if let Operates(event) = x { Some((event, RootTimestamp::new(t), 1 as isize)) } else { None })
+                .flat_map(|(t,_,x)| if let Operates(event) = x { Some((event, t, 1 as isize)) } else { None })
                 .as_collection();
 
             let channels =
             stream
-                .flat_map(|(t,_,x)| if let Channels(event) = x { Some((event, RootTimestamp::new(t), 1 as isize)) } else { None })
+                .flat_map(|(t,_,x)| if let Channels(event) = x { Some((event, t, 1 as isize)) } else { None })
                 .as_collection();
 
             // == Fix addresses so we can connect operators outside and inside subgraphs ==

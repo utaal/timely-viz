@@ -13,9 +13,9 @@ extern crate serde;
 extern crate serde_json;
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use timely::dataflow::operators::{Map, capture::Replay};
-use timely::progress::timestamp::RootTimestamp;
 use timely::logging::TimelyEvent::{Operates, Schedule, Channels, Messages};
 use timely::dataflow::operators::{Operator, Concat, Filter};
 
@@ -117,9 +117,7 @@ fn main() {
         // create replayers from disjoint partition of source worker identifiers
         let replayers = timely_viz::make_replayers(sockets, worker.index(), worker.peers());
 
-        let shift = 25;
-
-        worker.dataflow::<u64,_,_>(|scope| {
+        worker.dataflow::<Duration,_,_>(|scope| {
 
             let replayed = replayers.replay_into(scope);
 
@@ -127,8 +125,8 @@ fn main() {
             replayed
                 .flat_map(move |(ts, _setup, datum)|
                     if let Operates(event) = datum {
-                        let ts = ((ts >> shift) + 1) << shift;
-                        Some((event, RootTimestamp::new(ts), 1))
+                        let ts = Duration::from_secs(ts.as_secs() + 1);
+                        Some((event, ts, 1))
                     }
                     else {
                         None
@@ -155,8 +153,8 @@ fn main() {
             replayed
                 .flat_map(move |(ts,_,x)|
                     if let Channels(event) = x {
-                        let ts = ((ts >> shift) + 1) << shift;
-                        Some(((event.id, event.scope_addr, event.source, event.target), RootTimestamp::new(ts), 1 as isize))
+                        let ts = Duration::from_secs(ts.as_secs() + 1);
+                        Some(((event.id, event.scope_addr, event.source, event.target), ts, 1 as isize))
                     }
                     else {
                         None
@@ -188,15 +186,15 @@ fn main() {
 
             let messages =
             replayed
-                .flat_map(move |(ts,_,x)|
+                .flat_map(move |(ts,_,x)| {
                     if let Messages(event) = x {
-                        let ts = ((ts >> shift) + 1) << shift;
-                        Some((event.channel, RootTimestamp::new(ts), event.length as isize))
+                        let ts = Duration::from_secs(ts.as_secs() + 1);
+                        Some((event.channel, ts, event.length as isize))
                     }
                     else {
                         None
                     }
-                )
+                })
                 .as_collection()
                 .count()
                 .inner
@@ -212,16 +210,18 @@ fn main() {
 
             let schedule =
             replayed
-                .flat_map(move |(ts, setup, x)| if let Schedule(event) = x { Some((ts, setup.index, event)) } else { None })
+                .flat_map(move |(ts, worker, x)| if let Schedule(event) = x { Some((ts, worker, event)) } else { None })
                 .unary(timely::dataflow::channels::pact::Pipeline, "Schedules", |_,_| {
 
                     let mut map = std::collections::HashMap::new();
+                    let mut vec = Vec::new();
 
                     move |input, output| {
 
                         input.for_each(|time, data| {
+                            data.swap(&mut vec);
                             let mut session = output.session(&time);
-                            for (ts, worker, event) in data.drain(..) {
+                            for (ts, worker, event) in vec.drain(..) {
                                 let key = (worker, event.id);
                                 match event.start_stop {
                                     timely::logging::StartStop::Start => {
@@ -232,8 +232,10 @@ fn main() {
                                         assert!(map.contains_key(&key));
                                         let start = map.remove(&key).unwrap();
                                         // if work {
-                                            let ts_clip = ((ts >> 25) + 1) << 25;
-                                            session.give((key.1, RootTimestamp::new(ts_clip), (ts - start) as isize));
+                                        let ts_clip = Duration::from_secs(ts.as_secs() + 1);
+                                        let elapsed = ts - start;
+                                        let elapsed_ns = (elapsed.as_secs() as isize) * 1_000_000_000 + (elapsed.subsec_nanos() as isize);
+                                        session.give((key.1, ts_clip, elapsed_ns));
                                         // }
                                     }
                                 }
@@ -263,7 +265,7 @@ fn main() {
                     let mut updates = Vec::new();
 
                     input.for_each(|_time, dataz| {
-                        for update in dataz.drain(..) {
+                        for update in dataz.iter().cloned() {
                             updates.push(update);
                         }
                     });
