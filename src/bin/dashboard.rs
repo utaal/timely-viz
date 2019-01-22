@@ -106,6 +106,7 @@ fn main() {
 
     // the number of workers in the computation we're examining
     let source_peers = args.next().expect("Must provide number of source peers").parse::<usize>().expect("Source peers must be an unsigned integer");
+    let frequency_ns = args.next().expect("Must provide nanoseconds frequency").parse::<u32>().expect("Frequency must be an unsigned integer");
     let sockets = timely_viz::open_sockets(source_peers);
 
     timely::execute_from_args(std::env::args(), move |worker| {
@@ -123,14 +124,13 @@ fn main() {
 
             let operates =
             replayed
-                .flat_map(move |(ts, _setup, datum)|
-                    if let Operates(event) = datum {
-                        let ts = Duration::from_secs(ts.as_secs() + 1);
+                .flat_map(move |(mut ts, _setup, datum)|
+                    if let Operates(mut event) = datum {
+                        event.addr.insert(0, _setup);
+                        ts = round_duration_up_to_ns(ts, frequency_ns);
                         Some((event, ts, 1))
                     }
-                    else {
-                        None
-                    }
+                    else { None }
                 )
                 .as_collection()
                 .filter(|x| x.addr[0] == 0)
@@ -151,9 +151,10 @@ fn main() {
 
             let channels =
             replayed
-                .flat_map(move |(ts,_,x)|
-                    if let Channels(event) = x {
-                        let ts = Duration::from_secs(ts.as_secs() + 1);
+                .flat_map(move |(mut ts,_setup,x)|
+                    if let Channels(mut event) = x {
+                        event.scope_addr.insert(0, _setup);
+                        ts = round_duration_up_to_ns(ts, frequency_ns);
                         Some(((event.id, event.scope_addr, event.source, event.target), ts, 1 as isize))
                     }
                     else {
@@ -186,9 +187,9 @@ fn main() {
 
             let messages =
             replayed
-                .flat_map(move |(ts,_,x)| {
+                .flat_map(move |(mut ts,_,x)| {
                     if let Messages(event) = x {
-                        let ts = Duration::from_secs(ts.as_secs() + 1);
+                        ts = round_duration_up_to_ns(ts, frequency_ns);
                         Some((event.channel, ts, event.length as isize))
                     }
                     else {
@@ -228,15 +229,13 @@ fn main() {
                                         assert!(!map.contains_key(&key));
                                         map.insert(key, ts);
                                     },
-                                    timely::logging::StartStop::Stop { activity: _work } => {
+                                    timely::logging::StartStop::Stop => {
                                         assert!(map.contains_key(&key));
                                         let start = map.remove(&key).unwrap();
-                                        // if work {
-                                        let ts_clip = Duration::from_secs(ts.as_secs() + 1);
+                                        let mut ts_clip = round_duration_up_to_ns(ts, frequency_ns);
                                         let elapsed = ts - start;
                                         let elapsed_ns = (elapsed.as_secs() as isize) * 1_000_000_000 + (elapsed.subsec_nanos() as isize);
                                         session.give((key.1, ts_clip, elapsed_ns));
-                                        // }
                                     }
                                 }
                             }
@@ -293,7 +292,7 @@ fn main() {
     }));
 
     fn index(_req: HttpRequest) -> Result<NamedFile> {
-        let html_file = ::std::env::args().nth(2).expect("Must provide path to html file");
+        let html_file = ::std::env::args().nth(3).expect("Must provide path to html file");
         Ok(NamedFile::open(html_file)?)
     }
 
@@ -306,4 +305,11 @@ fn main() {
             })
             .resource("/", |r| r.method(Method::GET).f(index))
     }).bind("0.0.0.0:9000").unwrap().run();
+}
+
+fn round_duration_up_to_ns(mut duration: Duration, nanos: u32) -> Duration {
+    duration += Duration::from_nanos(nanos as u64);
+    duration /= nanos;
+    duration *= nanos;
+    duration
 }

@@ -162,7 +162,7 @@
         "name": "sunburst_data",
         "value": "datum",
         "on": [{"events": "arc:click", "update": "datum"},{"events": "rect:click", "update": "datum"}
-        ] 
+        ]
       }
     ],
     "scales": [
@@ -185,7 +185,7 @@
         "domain": [0, 1],
         "domainMin": {"signal": "miny"},
         "range": [{"signal": "miny != 0 ? 20 : 0"}, {"signal": "(min(width, height )/2.5) - 10"}]
-      },   
+      },
       {
         "name": "yscale",
         "type": "band",
@@ -202,8 +202,8 @@
       }
     ],
     "axes": [
-      { 
-        "orient": "left", 
+      {
+        "orient": "left",
         "scale": "yscale",
         "titlePadding": 15,
         "title": "address",
@@ -249,7 +249,7 @@
             "zindex": {"value": 1}
           }
         }
-      },    
+      },
       {
         "type": "rect",
         "from": {"data":"table"},
@@ -280,7 +280,7 @@
             "fontSize": {"value": 20},
             "align": {"value": "right"},
             "x":{"value": 180},
-            "y":{"value": 400}  
+            "y":{"value": 400}
           },
           "update": {
             "text": {"signal": "'current filter: ' + filterlist"}
@@ -290,7 +290,7 @@
     ]
   };
 
-    const back_button = document.getElementById('back');  
+    const back_button = document.getElementById('back');
 
     var view = new
     vega.View(vega.parse(my_spec))
@@ -299,10 +299,10 @@
     .initialize('#view-lhs') // initialize view within parent DOM container
     .hover()             // enable hover encode set processing
     .run();
-    
 
-    view.insert('tree', {"addr": "[0,0]", "parent": null, "name": "Dataflow", "elapsed_ns": 0}).run();
-     
+
+    view.insert('tree', {"addr": "[0]", "parent": null, "name": "Dataflow", "elapsed_ns": 0}).run();
+
     let map_operates = new Map();
     let map_channels = new Map();
     let map_schedule = new Map();
@@ -330,7 +330,7 @@
       update_graph(operates, channels);
     });
 
-    
+
     back_button.onclick = () => {
       let cur = view.signal('filterlist');
       view.signal('filterlist', cur.substring(0, cur.lastIndexOf(',')) + "]");
@@ -344,38 +344,39 @@
       let changeset = vega.changeset();
       let changeset_msgs = vega.changeset();
 
+      console.log(updates);
 
       let map_temp_ops = new Map();
       let map_temp_chs = new Map();
       let map_temp_sch = new Map();
-      let map_temp_msg = new Map();   
-      
+      let map_temp_msg = new Map();
+
       for (let update of updates) {
         if(!!update.event.Operate){
           if(!map_temp_ops.has(update.event.Operate.id)){
             map_temp_ops.set(update.event.Operate.id, []);
-          }        
+          }
           map_temp_ops.get(update.event.Operate.id).push(update);
         }
 
         else if(!!update.event.Channel){
           if(!map_temp_chs.has(update.event.Channel.id)){
             map_temp_chs.set(update.event.Channel.id, []);
-          }        
+          }
           map_temp_chs.get(update.event.Channel.id).push(update);
-        
+
         }
         else if(!!update.event.Schedule){
           if(!map_temp_sch.has(update.event.Schedule.operate_id)){
             map_temp_sch.set(update.event.Schedule.operate_id, []);
-          }        
-          map_temp_sch.get(update.event.Schedule.operate_id).push(update);  
+          }
+          map_temp_sch.get(update.event.Schedule.operate_id).push(update);
         }
 
         else if (!!update.event.Messages){
           if(!map_temp_msg.has(update.event.Messages.channel_id)){
             map_temp_msg.set(update.event.Messages.channel_id, []);
-          }        
+          }
           map_temp_msg.get(update.event.Messages.channel_id).push(update);
         }
       }
@@ -386,7 +387,7 @@
             map_operates.set(id, list[0].event.Operate);
           }else {
             map_operates.delete(id);
-          } 
+          }
         }else if(list.length == 2){
           if(list[0].delta == 1){
             map_operates.set(id, list[0].event.Operate);
@@ -401,14 +402,14 @@
 
       for(let [id,list] of map_temp_chs){
         if(list.length == 1){
-           
+
           if(list[0].delta == 1){
             map_channels.set(id, list[0].event.Channel);
 
           }else {
             map_channels.delete(id);
           }
-           
+
         }else if(list.length == 2){
           if(list[0].delta == 1){
             map_channels.set(id, list[0].event.Channel)
@@ -422,7 +423,7 @@
 
       for(let [id,o] of map_operates){
         let obj = {
-          "addr": '[' + o.addr.toString() + ']', 
+          "addr": '[' + o.addr.toString() + ']',
           "parent": '[' + o.addr.toString().substring(0, o.addr.toString().lastIndexOf(',')) + ']',
           "elapsed_ns": 0,
           "count":0,
@@ -437,18 +438,18 @@
 
       for(let [id,list] of map_temp_sch){
         if(list.length == 1){
-          if(list[0].delta == 1){    
+          if(list[0].delta == 1){
             changeset.modify((x) => x.id == list[0].event.Schedule.operate_id, "elapsed_ns", list[0].event.Schedule.elapsed_ns);
-            map_schedule.set(id, list[0].event.Schedule);          
+            map_schedule.set(id, list[0].event.Schedule);
           }else {
             map_schedule.delete(id);
             changeset.remove((x) => x.id == list[0].event.Schedule.operate_id);
           }
         }else if(list.length == 2){
-          if(list[0].delta == 1){     
+          if(list[0].delta == 1){
             changeset.modify((x) => x.id == list[0].event.Schedule.operate_id, "elapsed_ns", list[0].event.Schedule.elapsed_ns);
             map_schedule.set(id, list[0].event.Schedule);
-          }else {          
+          }else {
             changeset.modify((x) => x.id == list[1].event.Schedule.operate_id, "elapsed_ns", list[1].event.Schedule.elapsed_ns);
             map_schedule.set(id, list[1].event.Schedule);
           }
@@ -456,7 +457,7 @@
           console.error("More than 2 updates");
         }
       }
-    
+
       for(let [id,list] of map_temp_msg){
         if(list.length == 1){
           if(list[0].delta == 1){
@@ -475,19 +476,19 @@
         }
       }
     document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = view.signal('sunburst_data').elapsed_ns;
-    view.change('tree', changeset).run();     
-    
+    view.change('tree', changeset).run();
+
     });
-    
+
   document.querySelector('#view-rhs li .operate_name_update').innerHTML = "Dataflow";
   document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = "0";
   document.querySelector('#view-rhs li .total_count_update').innerHTML = "0";
-     
+
   view.addSignalListener('sunburst_data', function (name, value){
 
     document.querySelector('#view-rhs li .operate_name_update').innerHTML = value.name;
     document.querySelector('#view-rhs li .elapsed_ns_update').innerHTML = value.elapsed_ns;
-    
+
     //to erase previous input & output data
     let input_out = document.getElementById("update");
     while (input_out.firstChild) {
@@ -503,13 +504,13 @@
         let inp = "Input "  + o.to_port + " : " +  o.from_addr;
         input_output.push(inp);
       }
-      else if(value.addr == from_addr ){  
+      else if(value.addr == from_addr ){
         let out = "Output " + o.from_port + " : " + o.to_addr;
-        input_output.push(out);      
+        input_output.push(out);
         let total_cnt = map_messages.get(id).total_count;
-        document.querySelector('#view-rhs li .total_count_update').innerHTML = total_cnt;     
-        
-     
+        document.querySelector('#view-rhs li .total_count_update').innerHTML = total_cnt;
+
+
       }
 
     }
@@ -520,8 +521,8 @@
         list_value = document.createElement("li");
         list_value.textContent = o;
         update_list.appendChild(list_value);
-      }  
-    
+      }
+
   });
 
   view.addSignalListener('sunburst_data', function (name, value) {
@@ -538,7 +539,7 @@
         return false;
       });
   svg_parent.call(zoom);
-  
+
   function update_graph(operates, channels){
     let g = new dagreD3.graphlib.Graph({});
     g.setGraph({
