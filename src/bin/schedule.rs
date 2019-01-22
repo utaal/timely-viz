@@ -118,15 +118,15 @@ fn main() {
                                         assert!(!map.contains_key(&key));
                                         map.insert(key, ts);
                                     },
-                                    timely::logging::StartStop::Stop { activity: work } => {
+                                    timely::logging::StartStop::Stop => {
                                         assert!(map.contains_key(&key));
                                         let end = map.remove(&key).unwrap();
-                                        if work {
+//                                        if work {
                                             let ts_clip = Duration::from_secs(ts.as_secs() + 1);
                                             let elapsed = ts - end;
                                             let elapsed_ns = (elapsed.as_secs() as isize) * 1_000_000_000 + (elapsed.subsec_nanos() as isize);
                                             session.give((key.1, ts_clip, elapsed_ns));
-                                        }
+//                                        }
                                     }
                                 }
                             }
