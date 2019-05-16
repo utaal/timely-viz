@@ -1,5 +1,17 @@
 # Receivers for timely-dataflow logging
 
+<br/>
+<br/>
+<br/>
+<br/>
+
+**NOTE: We're in the process of deprecating these tools in favour of more robust diagnostic infrastructure at [timelydataflow/diagnostics](https://github.com/timelydataflow/diagnostics).**
+
+<br/>
+<br/>
+<br/>
+<br/>
+
 ## Simple example
 
 Run the simple example with:
